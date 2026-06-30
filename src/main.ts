@@ -397,9 +397,15 @@ for (const s of sensors) {
 // only draw it — so the Tank Column's radar dome is visibly smaller than the Beachhead's. The Column
 // is mobile and closes on the Beachhead over time using the tested columnPositionAt(). This layer is
 // purely additive; it extends the single-site scene without touching the existing sensors/drones.
-const UNIT_BLUE = 0x6fa8ff;        // friendly / command-center blue
+const UNIT_BLUE = 0x6fa8ff;        // friendly / command-center blue — the BASE (Beachhead) color
+const COLUMN_AMBER = 0xffb454;     // the CONVOY (Tank Column) — distinct until Link-16 fuses them
+const RADAR_DOWN_RED = 0xff5a4d;   // a unit whose radar has been knocked offline (DDIL)
 const UNIT_EOIR = 0x37b6a0;        // matches the EO/IR modality tint used elsewhere
-interface CoopUnitView { unit: Unit; group: THREE.Group; mobile: boolean; }
+interface CoopUnitView {
+  unit: Unit; group: THREE.Group; mobile: boolean; isBeach: boolean;
+  pad: THREE.Mesh; dome: THREE.Mesh; edge: THREE.Mesh; eo: THREE.Mesh;
+  label: THREE.Sprite; radarClass: string;
+}
 const coopUnits: CoopUnitView[] = [];
 {
   const units: Unit[] = [MARINE_BEACHHEAD, tankColumnAt(0)];
@@ -407,6 +413,8 @@ const coopUnits: CoopUnitView[] = [];
   for (let i = 0; i < units.length; i++) {
     const u = units[i], cov = coverages[i];
     const limited = cov.radarClass === "limited";
+    const isBeach = u.id === "beachhead";
+    const unitColor = isBeach ? UNIT_BLUE : COLUMN_AMBER;   // base blue vs convoy amber
     const grp = new THREE.Group();
     grp.position.set(u.pos.x, 0, u.pos.z);
     scene.add(grp);
@@ -414,21 +422,21 @@ const coopUnits: CoopUnitView[] = [];
     // command pad: a low hex platform so each unit reads as a site, not a sensor post
     const pad = new THREE.Mesh(
       new THREE.CylinderGeometry(24, 30, 7, 6),
-      new THREE.MeshStandardMaterial({ color: 0x16314a, emissive: UNIT_BLUE, emissiveIntensity: 0.28, roughness: 0.5 })
+      new THREE.MeshStandardMaterial({ color: 0x16314a, emissive: unitColor, emissiveIntensity: 0.28, roughness: 0.5 })
     );
     pad.position.y = 3.5; pad.castShadow = true; pad.receiveShadow = true; grp.add(pad);
 
     // radar coverage dome — radius straight from the deterministic coverage volume
     const dome = new THREE.Mesh(
       new THREE.SphereGeometry(cov.radarRadiusM, 28, 14, 0, Math.PI * 2, 0, Math.PI / 2.4),
-      new THREE.MeshBasicMaterial({ color: UNIT_BLUE, wireframe: true, transparent: true, opacity: limited ? 0.08 : 0.05 })
+      new THREE.MeshBasicMaterial({ color: unitColor, wireframe: true, transparent: true, opacity: limited ? 0.08 : 0.05 })
     );
     grp.add(dome);
 
     // ground ring at the radar edge — this is the at-a-glance "broad vs limited" extent read (DOD-2)
     const edge = new THREE.Mesh(
       new THREE.RingGeometry(cov.radarRadiusM - 5, cov.radarRadiusM, 72),
-      new THREE.MeshBasicMaterial({ color: UNIT_BLUE, transparent: true, opacity: 0.24, side: THREE.DoubleSide, depthWrite: false })
+      new THREE.MeshBasicMaterial({ color: unitColor, transparent: true, opacity: 0.24, side: THREE.DoubleSide, depthWrite: false })
     );
     edge.rotation.x = -Math.PI / 2; edge.position.y = 1; grp.add(edge);
 
@@ -440,11 +448,22 @@ const coopUnits: CoopUnitView[] = [];
     eo.rotation.x = -Math.PI / 2; eo.position.y = 1.5; grp.add(eo);
 
     // unit label names the unit and its radar class (BROAD / LIMITED) so DOD-2 is legible
-    const label = makeLabel(`${u.name} · RADAR ${cov.radarClass.toUpperCase()}`, UNIT_BLUE);
+    const label = makeLabel(`${u.name} · RADAR ${cov.radarClass.toUpperCase()}`, unitColor);
     label.position.set(0, 64, 0); grp.add(label);
 
-    coopUnits.push({ unit: u, group: grp, mobile: u.mobile });
+    coopUnits.push({ unit: u, group: grp, mobile: u.mobile, isBeach, pad, dome, edge, eo, label, radarClass: cov.radarClass });
   }
+}
+
+/** Repaint a unit's pad/dome/edge + label to a color (Link-16 fusion convergence + radar-down red). */
+function paintUnit(cu: CoopUnitView, colorHex: number, labelText: string): void {
+  (cu.pad.material as THREE.MeshStandardMaterial).emissive.setHex(colorHex);
+  (cu.dome.material as THREE.MeshBasicMaterial).color.setHex(colorHex);
+  (cu.edge.material as THREE.MeshBasicMaterial).color.setHex(colorHex);
+  cu.group.remove(cu.label);
+  const lab = makeLabel(labelText, colorHex);
+  lab.position.copy(cu.label.position);
+  cu.group.add(lab); cu.label = lab;
 }
 
 // --- coop drones: blue / red / green by FACTION (B3, DOD-6) ---
@@ -536,6 +555,9 @@ const lastLinkPic: [Set<string>, Set<string>] = [new Set(), new Set()];
 let operatorMode: OperatorMode = "manual"; // default: human approves every kill (toggle to Autonomous for machine-speed)
 let commsCase: CommsCase = "persistent";    // Case 1 (persistent) ↔ Case 2 (intermittent) — E2/DOD-12
 let perspective: UnitId = "beachhead";      // whose air picture is highlighted — E3/DOD-13
+let radarDownBeach = false;                 // DDIL: Beachhead radar knocked offline → blind organically, leans on Link-16
+let lastPaintLink: boolean | null = null;   // repaint units only on link/radar transitions (not every frame)
+let lastPaintRadar: boolean | null = null;
 const engaged = new Set<string>();          // shoot-and-shout: tracks already fired on (persists across ticks)
 // E1/E4: pending human-approval gates — a hostile that needs human approval pauses here; nothing
 // fires until `granted` reaches `needed`. DENY drops it into `deniedGates` so it never auto-re-arms.
@@ -620,9 +642,76 @@ function setPerspective(u: UnitId): void {
   perspective = u;
   for (const b of perspBtns) b.classList.toggle("active", b.dataset.persp === u);
 }
+const radarBeachBtn = document.getElementById("radarBeachBtn") as HTMLButtonElement;
+function setRadarDown(down: boolean): void {
+  if (down === radarDownBeach) return;
+  radarDownBeach = down;
+  radarBeachBtn.classList.toggle("active", !down);          // "active" = radar UP (green/on)
+  radarBeachBtn.textContent = down ? "Beachhead DOWN" : "Beachhead UP";
+  pendingGates.clear(); loggedStatus.clear(); renderGates();  // re-decide engagements under the new sensor picture
+  logEvent(down
+    ? "DDIL: Marine Beachhead RADAR OFFLINE (jammed/kinetic) — organically BLIND; air picture now via Link-16 only."
+    : "Marine Beachhead RADAR restored — organic coverage back online.", clock.elapsedTime);
+  playRadarAlarm(down);
+}
 for (const b of modeBtns) b.onclick = () => setMode(b.dataset.mode as OperatorMode);
 for (const b of commsBtns) b.onclick = () => setComms(b.dataset.comms as CommsCase);
 for (const b of perspBtns) b.onclick = () => setPerspective(b.dataset.persp as UnitId);
+radarBeachBtn.onclick = () => setRadarDown(!radarDownBeach);
+
+// --- audio: synthesized SFX (Web Audio API, no asset files → strict-CSP safe). The browser blocks
+// audio until a user gesture, so the context is created/resumed on the first pointer/key event. ---
+let audioCtx: AudioContext | null = null;
+let masterGain: GainNode | null = null;
+function ensureAudio(): void {
+  if (!audioCtx) {
+    const AC = (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext);
+    if (!AC) return;
+    audioCtx = new AC();
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = 0.5;
+    masterGain.connect(audioCtx.destination);
+  }
+  if (audioCtx.state === "suspended") void audioCtx.resume();
+}
+addEventListener("pointerdown", ensureAudio);
+addEventListener("keydown", ensureAudio);
+/** A short enveloped oscillator note (optionally gliding from freq → glideTo). */
+function tone(freq: number, t0: number, dur: number, type: OscillatorType = "sine", peak = 0.4, glideTo?: number): void {
+  if (!audioCtx || !masterGain) return;
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, t0);
+  if (glideTo) o.frequency.exponentialRampToValueAtTime(Math.max(1, glideTo), t0 + dur);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(peak, t0 + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g); g.connect(masterGain); o.start(t0); o.stop(t0 + dur + 0.02);
+}
+/** A decaying filtered noise burst — the body of an explosion / effector hit. */
+function noiseBurst(t0: number, dur: number, peak = 0.6, cutoff = 1700): void {
+  if (!audioCtx || !masterGain) return;
+  const n = Math.floor(audioCtx.sampleRate * dur);
+  const buf = audioCtx.createBuffer(1, n, audioCtx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+  const src = audioCtx.createBufferSource(); src.buffer = buf;
+  const lp = audioCtx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = cutoff;
+  const g = audioCtx.createGain();
+  g.gain.setValueAtTime(peak, t0); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  src.connect(lp); lp.connect(g); g.connect(masterGain); src.start(t0); src.stop(t0 + dur + 0.02);
+}
+/** Link-16 established — a quick rising two-tone "connect" chime. */
+function playLink(): void { ensureAudio(); if (!audioCtx) return; const t = audioCtx.currentTime; tone(660, t, 0.12, "sine", 0.3); tone(990, t + 0.09, 0.2, "sine", 0.34); }
+/** Link lost — a single descending tone. */
+function playLinkLost(): void { ensureAudio(); if (!audioCtx) return; const t = audioCtx.currentTime; tone(520, t, 0.24, "sine", 0.26, 230); }
+/** Attack / effector defeat — low thud + filtered explosion burst + a brief zap transient. */
+function playAttack(): void { ensureAudio(); if (!audioCtx) return; const t = audioCtx.currentTime; tone(170, t, 0.2, "sawtooth", 0.45, 55); noiseBurst(t, 0.45, 0.7, 1500); tone(1500, t, 0.07, "square", 0.16, 300); }
+/** Radar offline/restored alarm — falling two-tone when down, rising when restored. */
+function playRadarAlarm(down: boolean): void {
+  ensureAudio(); if (!audioCtx) return; const t = audioCtx.currentTime;
+  if (down) { tone(460, t, 0.16, "square", 0.26, 300); tone(300, t + 0.17, 0.22, "square", 0.26, 200); }
+  else { tone(420, t, 0.18, "square", 0.24, 640); }
+}
 
 // --- drones ---
 interface Live {
@@ -1073,6 +1162,7 @@ addEventListener("keydown", (e) => {
   else if (k === "3") goView("threat");
   else if (k === "4") goView("sensor");
   else if (k === "f") setFollow(!followHostile);
+  else if (k === "r") setRadarDown(!radarDownBeach);   // DDIL: knock the Beachhead radar offline / restore
 });
 
 // --- T10: scripted demo timeline (the R4.3 narrative beat path) ---
@@ -1152,12 +1242,33 @@ function animate() {
   // --- C1/C2: Link-16 state + per-unit air pictures + fusion (deterministic core decides) ---
   // Rebuild live unit objects from the same tested functions the renderer uses for position, so the
   // air picture matches exactly what's on screen. The Column's pos rides columnPositionAt(elapsed).
-  const beachUnit = MARINE_BEACHHEAD;
+  // DDIL: when the Beachhead radar is knocked offline, it is organically BLIND (radar + EO/IR ranges
+  // zeroed) — so it holds tracks ONLY through Link-16's fused picture. If the link also drops (Case 2
+  // jamming) it goes fully dark and self-protects. The deterministic core decides all of this from the
+  // zeroed ranges; nothing here is faked.
+  const beachUnit: Unit = radarDownBeach ? { ...MARINE_BEACHHEAD, radarRangeM: 0, eoirRangeM: 0 } : MARINE_BEACHHEAD;
   const colUnit = tankColumnAt(clock.elapsedTime, 1);
   const coopUnitObjs: [Unit, Unit] = [beachUnit, colUnit];
   const link = coopLinkUpAt(clock.elapsedTime, commsCase, 1);
   if (link) lastLinkUpSec = clock.elapsedTime;
   const health = commsHealth(link, clock.elapsedTime, lastLinkUpSec); // DOD-12 LIVE/DELAYED/FAILED
+  // Convoy/base coloring: the Tank Column is amber and the Beachhead blue UNTIL Link-16 fuses them,
+  // then the convoy matches the base (shared blue) — the at-a-glance "we are one picture now" cue. A
+  // downed Beachhead radar overrides to red. Repaint only on a transition (cheap; not every frame).
+  if (link !== lastPaintLink || radarDownBeach !== lastPaintRadar) {
+    for (const cu of coopUnits) {
+      if (cu.isBeach) {
+        paintUnit(cu, radarDownBeach ? RADAR_DOWN_RED : UNIT_BLUE,
+          radarDownBeach ? `${cu.unit.name} · RADAR DOWN` : `${cu.unit.name} · RADAR ${cu.radarClass.toUpperCase()}`);
+        const s = radarDownBeach ? 0.12 : 1;                 // collapse the coverage dome when offline
+        cu.dome.scale.setScalar(s); cu.edge.scale.setScalar(s); cu.eo.scale.setScalar(s);
+      } else {
+        paintUnit(cu, link ? UNIT_BLUE : COLUMN_AMBER,
+          `${cu.unit.name} · RADAR ${cu.radarClass.toUpperCase()}${link ? " · FUSED" : ""}`);
+      }
+    }
+    lastPaintLink = link; lastPaintRadar = radarDownBeach;
+  }
   // idle life for the coop drones: spin rotors + a gentle altitude bob (deterministic per-track phase)
   for (const d of coopDrones) {
     for (const r of d.rotors) r.rotation.y += dt * 30;
@@ -1244,8 +1355,10 @@ function animate() {
 
   // --- Phase D/E engagement step (DOD-6/7/8/9/10/12/14): core resolves; we log + render + gate it ---
   // 1) link + handoff transitions → one plain-English callout each (DOD-4 link, DOD-12 degradation)
-  if (link !== linkWasUp)
+  if (link !== linkWasUp) {
     logEvent(link ? "LINK-16 ESTABLISHED — air pictures fused." : "LINK-16 dropped.", clock.elapsedTime);
+    if (link) playLink(); else playLinkLost();
+  }
   if (health.handoff !== prevHandoff) {
     if (health.handoff === "DELAYED") logEvent("CASE 2: comms outage — cross-unit handoff DELAYED, shared tracks aging.", clock.elapsedTime);
     else if (health.handoff === "FAILED") logEvent("CASE 2: handoff FAILED — fallback to SELF-PROTECT (organic sensors only).", clock.elapsedTime);
@@ -1310,6 +1423,7 @@ function animate() {
     if (engaged.has(d.track.id) && !d.dead) {
       d.dead = true;
       logEvent(`${d.track.id} DESTROYED — effector hit confirmed; track removed.`, clock.elapsedTime);
+      playAttack();
     }
     const ringMat = d.ring.material as THREE.MeshBasicMaterial;
     const target = engaged.has(d.track.id) && !d.dead ? 0.45 + 0.3 * ((Math.sin(clock.elapsedTime * 5) + 1) / 2) : 0;
