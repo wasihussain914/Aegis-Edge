@@ -266,6 +266,12 @@ if stuck. **The loop appends new tasks under "Discovered" as it learns.** Verify
       to `model/threatCall` or the click/panel path and do NOT add them to the answer-key truth — they are
       visual density only, so the D2/D32/D33 classifier tests stay untouched and green. Cheap instanced/Points
       markers; keep build + typecheck green and 60 fps.
+- [ ] D51. Clickable legend → jump-to-threat (builds on D11, serves R4.3): make each D11 legend row a
+      button that, on click, selects the next live track at that threat level (cycling through them on
+      repeat clicks) and snaps the camera to frame it via the existing selectTrack()/goView() path — so
+      a demo operator can jump straight to "show me a HIGH" without hunting in the 3D view. Dim/disable a
+      row whose live count is 0 each frame (reuse the D11 tally). Pure DOM + existing selection plumbing;
+      classifier untouched; keep build + typecheck green and 60 fps.
 
 ## Done when
 Waves 1-3 + Discovered checked or blocked; `npm run typecheck` + `npm run build` green; the
