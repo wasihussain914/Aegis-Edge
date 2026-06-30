@@ -198,3 +198,10 @@ Newest at the bottom. One line per iteration: date/time, task, how verified.
   coverage shapes (radar dome / RF wedge / EO frustum) at a glance (R1.3 readability). One sprite per
   sensor (3 total); depthTest off so they read over geometry. Classifier untouched.
 - Verified: `npm run typecheck` + `npm run build` both green.
+- 2026-06-30 05:53 CDT — D10 done (Chopper). Detection-line polish: live sensor→track detection
+  lines now ease their opacity toward a target (DET_OP_MAX 0.45 when held, 0 when dropped) at
+  ~dt*6/frame instead of a hard visible on/off pop, so a sweep "acquiring" a track fades in/out
+  smoothly. Added `op` to DetLine; line stays visible + geometry-anchored to the live track while
+  op>0.01 so the fade-out trails the drone. D8 fusion still counts only on actual `seen`. Cheap;
+  classifier untouched.
+- Verified: `npm run typecheck` + `npm run build` both green.

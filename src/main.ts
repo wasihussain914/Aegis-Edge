@@ -543,15 +543,17 @@ for (const t of tracks()) {
 }
 
 // --- live detection lines: one per (sensor, track); shown only while that sensor sees the track ---
-interface DetLine { line: THREE.Line; s: LiveSensor; l: Live; pos: Float32Array; }
+// D10: `op` is the eased opacity — lines fade in/out toward a target instead of a hard on/off pop.
+interface DetLine { line: THREE.Line; s: LiveSensor; l: Live; pos: Float32Array; op: number; }
 const detLines: DetLine[] = [];
+const DET_OP_MAX = 0.45;   // full opacity when a sensor holds the track
 for (const s of liveSensors) for (const l of live) {
   const pos = new Float32Array(6);
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-  const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: MOD_COLOR[s.mode], transparent: true, opacity: 0.45 }));
+  const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: MOD_COLOR[s.mode], transparent: true, opacity: 0 }));
   line.visible = false; line.frustumCulled = false; scene.add(line);
-  detLines.push({ line, s, l, pos });
+  detLines.push({ line, s, l, pos, op: 0 });
 }
 
 // --- interaction: click a drone -> threat-call panel ---
@@ -901,12 +903,18 @@ function animate() {
       const dot = (dx * Math.cos(d.s.bearing) + dz * -Math.sin(d.s.bearing)) / (range || 1);
       seen = Math.acos(THREE.MathUtils.clamp(dot, -1, 1)) <= d.s.halfAngle;
     }
-    d.line.visible = seen;
-    if (seen) {
-      d.l.fusedMods.add(d.s.mode);   // D8: record this modality as currently holding the track
+    if (seen) d.l.fusedMods.add(d.s.mode);   // D8: record this modality as currently holding the track
+    // D10: ease opacity toward target so an "acquiring" sweep fades in/out smoothly rather than flickering.
+    const target = seen ? DET_OP_MAX : 0;
+    d.op += (target - d.op) * Math.min(1, dt * 6);
+    if (d.op < 0.01 && !seen) d.op = 0;
+    d.line.visible = d.op > 0.01;
+    if (d.line.visible) {
+      // keep the (possibly fading) line anchored to the live track position so it tracks the drone
       d.pos[0] = d.s.site.x; d.pos[1] = 9; d.pos[2] = d.s.site.z;
       d.pos[3] = tp.x; d.pos[4] = tp.y; d.pos[5] = tp.z;
       (d.line.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
+      (d.line.material as THREE.LineBasicMaterial).opacity = d.op;
     }
   }
   // leader line: project the selected track to screen and connect it to the open panel

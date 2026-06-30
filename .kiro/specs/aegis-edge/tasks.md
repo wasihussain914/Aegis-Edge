@@ -69,7 +69,7 @@ if stuck. **The loop appends new tasks under "Discovered" as it learns.** Verify
 - [x] D9. Sensor ID labels: a small color-coded canvas-sprite label (RAD-1 / RF-1 / EO-1, tinted by
       modality) floating above each sensor post so the now-distinct coverage shapes are named at a
       glance (R1.3 readability). One shared sprite material per sensor; keep it cheap and 60 fps.
-- [ ] D10. Detection-line polish: instead of a hard on/off pop, fade each detection line's opacity
+- [x] D10. Detection-line polish: instead of a hard on/off pop, fade each detection line's opacity
       in/out (and optionally taper toward the track) so a sweep "acquiring" a track reads smoothly
       rather than flickering — animate material.opacity toward a target each frame (R1.3 polish).
       Cheap; classifier untouched. Keep build green and 60 fps.
