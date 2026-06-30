@@ -108,6 +108,18 @@ if stuck. **The loop appends new tasks under "Discovered" as it learns.** Verify
 - [ ] D19. Ledger JSON export: a tiny HUD affordance ("⤓ export ledger") that serializes the T7
       `ledger[]` to a downloadable JSON blob for after-action review (R3.2). Pure client (Blob + object
       URL); no network; classifier untouched. Keep build + typecheck green.
+- [ ] D20. Radar-scope minimap (PPI inset): a small fixed 2D canvas in a HUD corner drawn each frame —
+      the protected asset at center, the no-fly ring, sensor range rings, and live track blips
+      threat-colored (with a tiny heading tick), north-up, scaled to SITE.size. Gives the classic
+      operator "scope" read at a glance alongside the 3D view (R1.3, R1.4). Cheap 2D canvas; classifier
+      untouched; keep build + typecheck green and 60 fps.
+- [ ] D21. Active-view HUD chip: a small label in #hud showing the current camera vantage
+      (OBLIQUE / TOP-DOWN / THREAT-AXIS / SENSOR-EYE / ▶ FOLLOW), updated from goView()/follow toggle so
+      the operator and demo viewers always know the vantage (R1.5 polish). Cheap DOM; keep build green.
+- [ ] D22. Auto-cut ingress beat: when a HIGH track first crosses inside SITE.noFlyR, flash a brief
+      "INCURSION — <id>" banner and, unless the operator picked a view in the last few seconds, snap the
+      camera to the threat-axis preset on that track — the scripted R4.3 ingress beat made automatic.
+      Deterministic + one-shot per track; classifier untouched; keep build + typecheck green and 60 fps.
 ## Done when
 Waves 1-3 + Discovered checked or blocked; `npm run typecheck` + `npm run build` green; the
 scripted demo path works end-to-end. Local commits only (Wasi pushes in the morning).
