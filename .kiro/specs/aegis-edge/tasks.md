@@ -159,6 +159,17 @@ if stuck. **The loop appends new tasks under "Discovered" as it learns.** Verify
       point (separate from the threat reticle), faint and scaled slightly by altitude, to anchor each drone
       to the terrain and sell the 3D depth without the cost of real shadow maps for fast movers (R1.2, R1.6).
       Cheap additive/alpha disc updated each frame from drone x/z; keep 60 fps and build + typecheck green.
+- [ ] D32. Determinism + non-mutation tests (extend `threatCall.test.ts`, builds on D2): assert `classify`
+      is pure — calling it twice on the same features deep-equals (locks R2.1 "same input → same output")
+      — and that `explainTemplate` never mutates the Classification it is handed (deep-equal before/after)
+      and that a HIGH narrative actually names its positive-weight drivers. Defends the "Bedrock/explanation
+      is OFF the kill chain, never alters the call" architecture claim (R2.3). Tests only; classifier
+      untouched; keep `npm test` + typecheck + build green.
+- [ ] D33. Gate-boundary guard test (extend `threatCall.test.ts`): pin the HIGH-threat logic by perturbing
+      real features — assert that clearing `insideNoFly` on 0427 drops it from HIGH to MED (geometry gate),
+      and that flipping `friendlyTransponder` true on 0427 suppresses it to NONE. Locks the exact threat
+      boundary so a future realism pass that rewires feature plumbing can't silently move the answer-key
+      line (R2.4, R3.1). Tests only; classifier untouched; keep build + typecheck green.
 
 ## Done when
 Waves 1-3 + Discovered checked or blocked; `npm run typecheck` + `npm run build` green; the
