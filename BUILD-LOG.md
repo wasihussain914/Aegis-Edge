@@ -64,3 +64,24 @@ Newest at the bottom. One line per iteration: date/time, task, how verified.
   panel's top-left, colored to match the track's threat. Click-empty clears selection and hides the
   overlay. Classifier untouched (Bedrock still narrate-only). Verified: `npm run typecheck` +
   `npm run build` both green (dist 538.81 kB).
+- 2026-06-30 01:10 CDT — T6 done (Chopper). Bedrock (Nova) explanation wired into the threat-call
+  panel via a tiny same-origin bridge — the AI narration is now real, not a placeholder. New
+  dependency-free `bridge/bedrock.mjs` signs a Bedrock `InvokeModel` call to Nova Lite
+  (`us.amazon.nova-lite-v1:0`, us-east-1) with hand-rolled SigV4 over `node:crypto` (no AWS SDK, so
+  the repo stays CSP-safe). It builds a tight operator-facing prompt from the classifier's logged
+  contributions and returns 2-3 sentences; reads creds from env, 8 s timeout, throws on any failure.
+  New `vite.config.ts` registers a dev middleware `POST /api/narrate {features}` that RE-RUNS the
+  real `classify` server-side (Bedrock stays OFF the kill chain), narrates via Nova when creds are
+  present, and falls back to `explainTemplate` otherwise — returning the classification verbatim.
+  New client `src/narrate.ts` posts features, and crucially distrusts the server's prose unless its
+  re-classification matches the authoritative client-side call exactly (class/threat/score), so
+  Bedrock can never alter the threat call. `main.ts` panel now shows the offline template instantly
+  with a "⏳ AI narrating…" state, then swaps in the narration tagged "◆ Bedrock Nova" or "○ offline
+  template"; a monotonic token prevents a slow reply from overwriting a newer selection. Smoke-tested
+  against LIVE workshop Bedrock (acct 477680267682): fixed a SigV4 403 — the canonical URI must
+  double-encode the model-id colon (`%3A`→`%253A`) while the wire path single-encodes — then Nova
+  returned a correct grounded narration for track 0427. Verified: `npm run typecheck` +
+  `npm run build` both green (dist 539.60 kB). Note: the bridge runs under `npm run dev`; `vite
+  preview` (static dist) has no endpoint and the client falls back to the offline template — by
+  design (works disconnected). Self-extended: D14 bridge-health HUD pill, D15 narration cache +
+  re-narrate, D16 hash-chained ledger seed (toward T7/R3.2).

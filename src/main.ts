@@ -10,6 +10,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { buildings, sensors, tracks, SITE, type DroneTrack, type SensorSite } from "./data/scenario.js";
 import { classify, explainTemplate, type Classification } from "./model/threatCall.js";
+import { fetchNarration } from "./narrate.js";
 
 const THREAT_COLOR: Record<string, number> = { HIGH: 0xff4d5e, MED: 0xffc14d, LOW: 0x5dd6a0, NONE: 0x6fa8ff };
 
@@ -405,18 +406,35 @@ addEventListener("click", (e) => {
   selected = l;
   const hex = "#" + (THREAT_COLOR[l.cls.threat] & 0xffffff).toString(16).padStart(6, "0");
   leader.setAttribute("stroke", hex); leaderDot.setAttribute("stroke", hex);
-  showPanel(l.track.id, l.cls);
+  showPanel(l);
 });
 
-function showPanel(id: string, k: Classification) {
+// Monotonic token so a slow Bedrock reply for an old click can't overwrite a newer selection.
+let narrateToken = 0;
+
+function showPanel(l: Live) {
+  const id = l.track.id, k = l.cls;
   const cls = `threat-${k.threat}`;
   panel.innerHTML =
     `<span class="tag ${cls}">${k.threat}</span> <span style="font-size:11px;color:#7e97bd;margin-left:6px;">TRACK ${id}</span>` +
     `<h2>${k.class.toUpperCase()} · score ${k.score}</h2>` +
-    `<div class="why">${explainTemplate(k)}</div>` +
+    `<div class="why" id="why"><span class="src" id="src">⏳ AI narrating…</span>${explainTemplate(k)}</div>` +
     k.contributions.map((c) => `<div class="row"><span>${c.feature}</span><span>${c.weight > 0 ? "+" : ""}${c.weight}</span></div>`).join("") +
     `<div class="row" style="margin-top:10px;color:#5f7799;"><span>recommend-only · human-gated</span><span>LLM off kill-chain</span></div>`;
   panel.classList.add("show");
+
+  // Narrate OFF the kill chain: Bedrock (Nova) when creds/bridge are live, else offline template.
+  // The classification above is already drawn and never changes; only the prose is replaced.
+  const token = ++narrateToken;
+  void fetchNarration(l.track.features, k).then((n) => {
+    if (token !== narrateToken) return;               // a newer click won
+    const why = document.getElementById("why");
+    if (!why) return;
+    const badge = n.source === "bedrock"
+      ? `<span class="src src-ai">◆ Bedrock Nova</span>`
+      : `<span class="src src-off">○ offline template</span>`;
+    why.innerHTML = `${badge}${n.text}`;
+  });
 }
 
 // --- loop ---

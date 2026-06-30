@@ -17,7 +17,7 @@ if stuck. **The loop appends new tasks under "Discovered" as it learns.** Verify
 ## Wave 2 — integration + readability (R2, R1.4)
 - [x] T5. Threat overlays: per-track label (id/class/threat), a pulsing red ring under HIGH
       tracks, and a leader line to the panel on selection.
-- [ ] T6. Bedrock explanation wired into the panel: on click, call a tiny backend/CLI bridge that
+- [x] T6. Bedrock explanation wired into the panel: on click, call a tiny backend/CLI bridge that
       runs `model/threatCall` + Bedrock (Nova) for the narrative; fall back to the offline
       template when no creds. Never alter the classification. (R2.3)
 - [ ] T7. Human-gate UX: HIGH track shows a "RECOMMEND DEFEAT — requires 2-person auth" gate with
@@ -81,6 +81,19 @@ if stuck. **The loop appends new tasks under "Discovered" as it learns.** Verify
 - [ ] D13. Label declutter by distance: fade each track label's sprite opacity with camera distance
       (full near, dim far) so a busy command view stays readable and the overlays never wash out the
       threat markers (R1.6, R2). Compute per frame from camera↔drone distance; cheap; 60 fps.
+- [ ] D14. Bridge health pill in the HUD: on load, probe `/api/narrate` once with a known track and
+      show a small status chip in #hud — "Bedrock Nova ●" (green) when the bridge returns
+      source=bedrock, "offline template ○" (amber) otherwise — so the demo operator knows at a glance
+      whether live narration is wired before clicking a track (R2.3, R4.3). One fetch at startup;
+      reuse `fetchNarration`'s plumbing; classifier untouched.
+- [ ] D15. Narration cache + re-narrate control: memoize the last narration per trackId so re-clicking
+      a track is instant, and add a tiny "↻ re-narrate" affordance in the panel that forces a fresh
+      Bedrock call (bypassing the cache) for the live demo. Keep the offline fallback path. Cheap DOM;
+      classifier untouched (R2.3).
+- [ ] D16. Ledger entry on each threat-call (R3.2 seed): when a track is classified/narrated, append a
+      hash-chained entry {ts, trackId, class, threat, score, contributions, source, prevHash, hash} to
+      an in-memory ledger and expose a count in the HUD. Pure client + deterministic SHA over the
+      entry; sets up the T7 human-gate + replay timeline. Classifier untouched; keep build green.
 ## Done when
 Waves 1-3 + Discovered checked or blocked; `npm run typecheck` + `npm run build` green; the
 scripted demo path works end-to-end. Local commits only (Wasi pushes in the morning).
