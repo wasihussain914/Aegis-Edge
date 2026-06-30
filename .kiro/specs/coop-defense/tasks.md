@@ -15,7 +15,7 @@ added smoke tests. Keep the dusk/command-center aesthetic. Map every task to its
 - [x] B1. Scenario: define **Marine Beachhead** (stationary, broad radar, SHORAD+RF) and **Army
       Tank Column** (mobile, LIMITED radar, SLAMRAAM+RF) in `src/data/coopScenario.ts`; the Column
       moves toward the Beachhead over time. (DOD-1 — data+motion done & tested; render is B2)
-- [ ] B2. Render both units in 3D with **distinct sensor-coverage volumes**; the Tank Column's
+- [x] B2. Render both units in 3D with **distinct sensor-coverage volumes**; the Tank Column's
       radar dome is visibly smaller than the Beachhead's. (DOD-1, DOD-2)
 - [ ] B3. Drones render **blue (friendly) / red (hostile) / green (neutral)** from `faction`;
       ≥1 red threat present. (DOD-6)
@@ -47,8 +47,8 @@ added smoke tests. Keep the dusk/command-center aesthetic. Map every task to its
       pass/fail for each in BUILD-LOG. Flag any assumption made.
 
 ## DEFINITION OF DONE (the loop checks these off; STOP when all are ✓)
-- [ ] DOD-1 both units render; Column moves toward Beachhead
-- [ ] DOD-2 distinct coverage; Column radar visibly limited
+- [x] DOD-1 both units render; Column moves toward Beachhead
+- [x] DOD-2 distinct coverage; Column radar visibly limited
 - [ ] DOD-3 out-of-range air pictures differ
 - [ ] DOD-4 Link-16 establishes w/ visual + status
 - [ ] DOD-5 link-up fuses; ≥1 single-unit track becomes shared

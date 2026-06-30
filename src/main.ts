@@ -16,6 +16,9 @@ import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { buildings, sensors, tracks, SITE, type DroneTrack, type SensorSite } from "./data/scenario.js";
 import { classify, explainTemplate, type Classification } from "./model/threatCall.js";
 import { fetchNarration } from "./narrate.js";
+import { MARINE_BEACHHEAD, tankColumnAt, columnPositionAt } from "./data/coopScenario.js";
+import { unitCoverages } from "./coop/coverage.js";
+import type { Unit } from "./coop/types.js";
 
 const THREAT_COLOR: Record<string, number> = { HIGH: 0xff4d5e, MED: 0xffc14d, LOW: 0x5dd6a0, NONE: 0x6fa8ff };
 
@@ -384,6 +387,62 @@ for (const s of sensors) {
     cone.rotation.z = Math.PI / 2; cone.position.set(s.rangeM / 2, 22, 0); yaw.add(cone);
   }
   liveSensors.push({ site: s, yaw, mode: s.modality, bearing: 0, sweepDir: 1, halfAngle, sweepSpan, spin });
+}
+
+// --- coop: two cooperating units (Marine Beachhead + Army Tank Column) with distinct coverage ---
+// DOD-1/DOD-2: render BOTH units as command platforms, each carrying its own sensor-coverage volume.
+// The deterministic core (coop/coverage) decides each dome's size and which radar is "limited"; we
+// only draw it — so the Tank Column's radar dome is visibly smaller than the Beachhead's. The Column
+// is mobile and closes on the Beachhead over time using the tested columnPositionAt(). This layer is
+// purely additive; it extends the single-site scene without touching the existing sensors/drones.
+const UNIT_BLUE = 0x6fa8ff;        // friendly / command-center blue
+const UNIT_EOIR = 0x37b6a0;        // matches the EO/IR modality tint used elsewhere
+interface CoopUnitView { unit: Unit; group: THREE.Group; mobile: boolean; }
+const coopUnits: CoopUnitView[] = [];
+{
+  const units: Unit[] = [MARINE_BEACHHEAD, tankColumnAt(0)];
+  const coverages = unitCoverages(units);
+  for (let i = 0; i < units.length; i++) {
+    const u = units[i], cov = coverages[i];
+    const limited = cov.radarClass === "limited";
+    const grp = new THREE.Group();
+    grp.position.set(u.pos.x, 0, u.pos.z);
+    scene.add(grp);
+
+    // command pad: a low hex platform so each unit reads as a site, not a sensor post
+    const pad = new THREE.Mesh(
+      new THREE.CylinderGeometry(24, 30, 7, 6),
+      new THREE.MeshStandardMaterial({ color: 0x16314a, emissive: UNIT_BLUE, emissiveIntensity: 0.28, roughness: 0.5 })
+    );
+    pad.position.y = 3.5; pad.castShadow = true; pad.receiveShadow = true; grp.add(pad);
+
+    // radar coverage dome — radius straight from the deterministic coverage volume
+    const dome = new THREE.Mesh(
+      new THREE.SphereGeometry(cov.radarRadiusM, 28, 14, 0, Math.PI * 2, 0, Math.PI / 2.4),
+      new THREE.MeshBasicMaterial({ color: UNIT_BLUE, wireframe: true, transparent: true, opacity: limited ? 0.08 : 0.05 })
+    );
+    grp.add(dome);
+
+    // ground ring at the radar edge — this is the at-a-glance "broad vs limited" extent read (DOD-2)
+    const edge = new THREE.Mesh(
+      new THREE.RingGeometry(cov.radarRadiusM - 5, cov.radarRadiusM, 72),
+      new THREE.MeshBasicMaterial({ color: UNIT_BLUE, transparent: true, opacity: 0.24, side: THREE.DoubleSide, depthWrite: false })
+    );
+    edge.rotation.x = -Math.PI / 2; edge.position.y = 1; grp.add(edge);
+
+    // narrower EO/IR ring inside the radar extent
+    const eo = new THREE.Mesh(
+      new THREE.RingGeometry(cov.eoirRadiusM - 4, cov.eoirRadiusM, 56),
+      new THREE.MeshBasicMaterial({ color: UNIT_EOIR, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false })
+    );
+    eo.rotation.x = -Math.PI / 2; eo.position.y = 1.5; grp.add(eo);
+
+    // unit label names the unit and its radar class (BROAD / LIMITED) so DOD-2 is legible
+    const label = makeLabel(`${u.name} · RADAR ${cov.radarClass.toUpperCase()}`, UNIT_BLUE);
+    label.position.set(0, 64, 0); grp.add(label);
+
+    coopUnits.push({ unit: u, group: grp, mobile: u.mobile });
+  }
 }
 
 // --- drones ---
@@ -837,6 +896,13 @@ function animate() {
   for (const w of livingFacades) {
     const a = Math.sin(tw * w.speed + w.phase) * 0.6 + Math.sin(tw * w.speed * 0.37 + w.phase * 1.7) * 0.4;
     w.mat.emissiveIntensity = WINDOW_BASE * (0.85 + 0.13 * a); // ~0.65–0.88, subtle; never blooms
+  }
+  // DOD-1: advance the mobile Tank Column toward the Beachhead from the tested deterministic
+  // position function (elapsed seconds as the tick); its coverage dome rides with it.
+  for (const cu of coopUnits) {
+    if (!cu.mobile) continue;
+    const cp = columnPositionAt(clock.elapsedTime, 1);
+    cu.group.position.set(cp.x, 0, cp.z);
   }
   for (const l of live) {
     // Arc-length lookups: u is fraction of distance, so ground speed is constant in m/s

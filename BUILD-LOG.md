@@ -238,3 +238,17 @@ Newest at the bottom. One line per iteration: date/time, task, how verified.
   radar-limited fact asserted here but its *visible* coverage is B2. Verified: `npm run typecheck`
   clean, `npm test` 19/19 pass (4 new), `npm run build` green (dist 570.53 kB). Single-site demo
   untouched. Next: B2 render both units + distinct sensor-coverage volumes.
+- 2026-06-30 14:1x CDT — B2 done (Chopper). Rendered BOTH cooperating units in the 3D scene with
+  distinct sensor-coverage volumes. New deterministic helper `src/coop/coverage.ts`: `unitCoverages()`
+  decides each unit's dome radii from its sensor ranges and classifies radar broad-vs-limited
+  RELATIVE across the unit set (smallest-radar unit = "limited") — pure, no three.js, so "Column
+  radar visibly limited" is test-backed not eyeballed. 3 new tests (`src/coop/coverage.test.ts`):
+  Beachhead→broad / Column→limited with Column dome smaller, radii map straight from unit ranges,
+  lone-unit baseline. `src/main.ts` (additive only — single-site sensors/drones untouched): each
+  unit gets a hex command pad, a radar coverage dome sized from `coverage`, a ground edge-ring (the
+  at-a-glance broad/limited extent), a narrower EO/IR ring, and a `NAME · RADAR BROAD|LIMITED`
+  label. The mobile Tank Column rides `columnPositionAt(elapsed)` toward the Beachhead each frame,
+  dome moving with it. DoD: **DOD-1** (both units render + Column moves toward Beachhead) and
+  **DOD-2** (distinct coverage; Column radar visibly limited, dome 200m vs 500m) — both now checked.
+  Verified: `npm run typecheck` clean, `npm test` 22/22 pass (3 new), `npm run build` green
+  (dist 572.28 kB; pre-existing three.js chunk-size warning only). Next: B3 blue/red/green drones.
