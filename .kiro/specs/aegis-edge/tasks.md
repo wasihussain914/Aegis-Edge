@@ -229,6 +229,18 @@ if stuck. **The loop appends new tasks under "Discovered" as it learns.** Verify
       BDOC time-in-zone metric that quantifies D7's strobe/trail urgency and sharpens the R4.3 ingress
       beat. Drive from the same `ingress` flag + dt; cheap DOM write; classifier untouched; keep
       build + typecheck green and 60 fps.
+- [ ] D45. Panel sensor-fusion readout (integrates D8 into R2.2): in the click-to-open threat panel,
+      render small per-modality chips (RAD / RF / EO) that light up for the modalities currently in
+      `selected.fusedMods`, plus a "FUSED" badge when ≥2 hold it — turning D8's at-a-glance HUD count
+      into a per-track sensor-custody detail the operator reads on click (R1.3 sensor↔track, R2.2
+      panel completeness). Refresh the chips each frame while the panel is open; reuse the existing
+      `fusedMods` set; classifier untouched; keep build + typecheck green and 60 fps.
+- [ ] D46. Lost-custody track aging (builds on D8): track per-frame whether ANY sensor currently holds
+      each track; when no modality has held it for >~2.5 s (custody lost), dim its label sprite and
+      trail opacity and tag the label "· AGING" so a track that has slipped out of all coverage reads
+      as degrading rather than confidently tracked (R1.3, R1.4 honesty of the picture). Reset on
+      reacquire. Deterministic from `fusedMods.size` + dt; cheap; classifier untouched; keep build +
+      typecheck green and 60 fps.
 
 ## Done when
 Waves 1-3 + Discovered checked or blocked; `npm run typecheck` + `npm run build` green; the
