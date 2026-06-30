@@ -140,6 +140,12 @@
         box-shadow: 0 0 16px rgba(255,77,58,.4); }
       body.jammed #jamBadge { display: block; animation: jamPulse .7s steps(2) infinite; }
       @keyframes jamPulse { 0%,100% { opacity: 1; } 50% { opacity: .5; } }
+      #edgeBadge { position: fixed; top: 50px; right: 16px; display: none; z-index: 50;
+        max-width: 280px; padding: 7px 13px; border-radius: 7px; text-align: right;
+        font: 600 11.5px/1.35 ui-monospace, Menlo, monospace; letter-spacing: .3px;
+        color: #bff0d6; background: rgba(6,30,20,.86); border: 1px solid #2fae73;
+        box-shadow: 0 0 16px rgba(47,174,115,.3); }
+      body.edge #edgeBadge { display: block; }
     </style>
   </head>
   <body>
@@ -205,6 +211,7 @@
     <div id="panel"></div>
     <div id="pausedBadge">⏸ EVALUATION PAUSED · camera live · Space to resume</div>
     <div id="jamBadge">⚡ LINK-16 JAMMED · enemy EW · units isolated</div>
+    <div id="edgeBadge">🛰✗ COMMS DENIED → <b>EDGE-AUTONOMOUS</b><br>deterministic gate deciding locally · no cloud needed</div>
     <div id="demoCaption"></div>
     <div id="hint">drag to orbit · scroll to zoom · click a track for the AI threat-call · views 1-4 · F follow · D demo · R radar-down · J jammer (link denied) · Space pause · 🔊 sound on
     <script type="module" src="/src/main.ts"></script>

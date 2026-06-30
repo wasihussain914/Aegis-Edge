@@ -593,6 +593,18 @@ let lastPaintRadar: boolean | null = null;
 let paused = false;
 let simTime = 0;
 let jammerActive = false;                   // Denied (DDIL): enemy EW jammer forces Link-16 fully down
+let prevJammed = false;                      // transition tracker for the unified jam state (manual + Case-2)
+// Case 2 (DDIL) runs a legible repeating cycle so a viewer sees BOTH things the system must survive:
+// a comms DEGRADATION outage (link bounces, tracks age → self-protect) and an enemy JAMMING blackout
+// (link denied, red sector). Case 1 stays clean. Deterministic by sim time.
+type Case2Phase = "up" | "degraded" | "jammed";
+const CASE2_CYCLE = 28;                      // seconds per full DDIL cycle
+function case2PhaseAt(t: number): Case2Phase {
+  const p = ((t % CASE2_CYCLE) + CASE2_CYCLE) % CASE2_CYCLE;
+  if (p >= 10 && p < 16) return "degraded";  // 6s comms outage → DELAYED then FAILED (self-protect)
+  if (p >= 21 && p < 26) return "jammed";    // 5s enemy EW blackout (link denied)
+  return "up";                               // otherwise fully fused
+}
 const engaged = new Set<string>();          // shoot-and-shout: tracks already fired on (persists across ticks)
 // E1/E4: pending human-approval gates — a hostile that needs human approval pauses here; nothing
 // fires until `granted` reaches `needed`. DENY drops it into `deniedGates` so it never auto-re-arms.
@@ -713,13 +725,8 @@ function setJammer(on: boolean): void {
   jammerActive = on;
   jammerBtn.classList.toggle("active", on);
   jammerBtn.textContent = on ? "Jammer ON" : "Jammer OFF";
-  jammerGroup.visible = on;
-  document.body.classList.toggle("jammed", on);
   pendingGates.clear(); loggedStatus.clear(); renderGates();   // re-decide with the link denied
-  logEvent(on ? "JAMMED" : "EW CLEAR", on
-    ? "enemy EW jammer active — Link-16 DENIED. Beachhead and Tank Column are isolated to their own sensors."
-    : "jamming has lifted — Link-16 can re-establish.", simTime, on ? "bad" : "good");
-  if (on) playLinkLost(); else playLink();
+  // sector visuals, log + sound are driven by the loop's unified `jammed` state (manual J or Case-2 window)
 }
 for (const b of modeBtns) b.onclick = () => setMode(b.dataset.mode as OperatorMode);
 for (const b of commsBtns) b.onclick = () => setComms(b.dataset.comms as CommsCase);
@@ -1331,14 +1338,29 @@ function animate() {
   const beachUnit: Unit = radarDownBeach ? { ...MARINE_BEACHHEAD, radarRangeM: 0, eoirRangeM: 0 } : MARINE_BEACHHEAD;
   const colUnit = tankColumnAt(simTime, 1);
   const coopUnitObjs: [Unit, Unit] = [beachUnit, colUnit];
-  // Denied (DDIL): an active EW jammer forces Link-16 fully down regardless of range/comms case.
-  const link = !jammerActive && coopLinkUpAt(simTime, commsCase, 1);
+  // DDIL link state: in Case 2 the phase cycle drives the drops (degradation outage / jamming blackout);
+  // a manually-forced jammer (J) denies the link in any case. The link is up only when in range, not in
+  // a degraded outage, and not jammed. Everything downstream reads this one `link`.
+  const phase: Case2Phase = commsCase === "intermittent" ? case2PhaseAt(simTime) : "up";
+  const case2Jam = phase === "jammed";
+  const jammed = jammerActive || case2Jam;
+  const link = !jammed && phase !== "degraded" && coopLinkUpAt(simTime, "persistent", 1);
   if (link) lastLinkUpSec = simTime;
   const health = commsHealth(link, simTime, lastLinkUpSec); // DOD-12 LIVE/DELAYED/FAILED
-  // jammer visuals: pulse the sector + beacon while active (frozen on pause via simTime)
-  if (jammerActive) {
-    const pulse = 0.10 + 0.12 * ((Math.sin(simTime * 6) + 1) / 2);
-    (jamWedge.material as THREE.MeshBasicMaterial).opacity = pulse;
+  // jam transitions (manual J or a Case-2 window): one log + sound when the blackout starts / lifts
+  if (jammed !== prevJammed) {
+    logEvent(jammed ? "JAMMED" : "EW CLEAR", jammed
+      ? "enemy EW blackout — Link-16 DENIED. Beachhead and Tank Column isolated to their own sensors; the edge gate keeps making shoot/no-shoot calls locally (no cloud needed)."
+      : "jamming lifted — Link-16 re-establishing.", simTime, jammed ? "bad" : "good");
+    if (jammed) playLinkLost(); else playLink();
+    prevJammed = jammed;
+  }
+  // jam visuals + the "running without the link/cloud" edge-autonomous banner (frozen on pause)
+  jammerGroup.visible = jammed;
+  document.body.classList.toggle("jammed", jammed);
+  document.body.classList.toggle("edge", jammed || health.handoff === "FAILED");
+  if (jammed) {
+    (jamWedge.material as THREE.MeshBasicMaterial).opacity = 0.10 + 0.12 * ((Math.sin(simTime * 6) + 1) / 2);
     jBeacon.scale.setScalar(0.7 + 0.5 * ((Math.sin(simTime * 9) + 1) / 2));
   }
   // Convoy/base coloring: the Tank Column is amber and the Beachhead blue UNTIL Link-16 fuses them,
@@ -1442,17 +1464,19 @@ function animate() {
     const pic = airPicture(selfUnit, otherUnit, COOP_TRACKS, link);
     const organic = pic.filter((t) => unitSees(selfUnit, t)).length;
     const viaLink = pic.length - organic;
+    // Cross-cue made explicit: a unit with no organic radar but tracks via the link is BORROWING its
+    // partner's eyes — the redundancy reaction. If it has nothing at all, it's blind (link + sensor gone).
+    const crossCue = organic === 0 ? (viaLink > 0 ? " — borrowing partner's radar" : " — BLIND (no sensor, no link)") : "";
     coopPerspEl.textContent = `PERSPECTIVE · ${labelUnit(perspective)} · ${pic.length} tracks` +
-      ` (${organic} organic${viaLink ? ` · ${viaLink} via Link-16` : ""})`;
+      ` (${organic} organic${viaLink ? ` · ${viaLink} via Link-16` : ""}${crossCue})`;
+    coopPerspEl.style.color = organic === 0 && viaLink === 0 ? "#ff8a94" : organic === 0 ? "#9fe8ff" : "#8fd0ff";
   }
 
   // --- Phase D/E engagement step (DOD-6/7/8/9/10/12/14): core resolves; we log + render + gate it ---
   // 1) link + handoff transitions → one plain-English callout each (DOD-4 link, DOD-12 degradation)
   if (link !== linkWasUp) {
-    logEvent(link ? "LINK-16 UP" : "LINK-16 DOWN", link
-      ? "Beachhead and Tank Column now share one fused air picture."
-      : "link lost — each unit is back to its own radar only.", simTime, link ? "good" : "warn");
-    if (link) playLink(); else playLinkLost();
+    if (link) { logEvent("LINK-16 UP", "Beachhead and Tank Column now share one fused air picture.", simTime, "good"); playLink(); }
+    else if (!jammed) { logEvent("LINK-16 DOWN", "link lost — each unit is back to its own radar only.", simTime, "warn"); playLinkLost(); }
   }
   if (health.handoff !== prevHandoff) {
     if (health.handoff === "DELAYED") logEvent("DEGRADED", "comms outage — shared tracks aging, no fresh handoff between units.", simTime, "warn");
