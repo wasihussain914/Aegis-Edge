@@ -197,6 +197,21 @@ if stuck. **The loop appends new tasks under "Discovered" as it learns.** Verify
       gently within a low band (~0.4–0.65) so the sky feels alive without ever rising toward the bloom
       threshold or washing out markers (R1.6). Deterministic from clock.elapsedTime; classifier
       untouched; keep build + typecheck green and 60 fps.
+- [ ] D39. Audio incursion cue: a short deterministic WebAudio alert (one-shot per track) the first time
+      a HIGH track crosses inside SITE.noFlyR — a brief two-tone alarm via an OscillatorNode, gated behind
+      a HUD mute toggle (default muted so the page never autoplays sound; operator un-mutes for the demo).
+      Reuse the same per-frame range check D7/D22 compute. No audio asset; pure WebAudio. Ties the ingress
+      beat to a sound cue (R1.4, R4.3). Classifier untouched; keep build + typecheck green.
+- [ ] D40. No-fly dome breach shimmer: while any HIGH track is inside the no-fly volume, pulse the dome's
+      emissive/opacity (deterministic sin(t)) so the protected volume itself visibly reacts to penetration
+      — at rest it stays faint, on breach it throbs amber→red — making "the asset is under threat" read in
+      the scene without text (R1.1, R1.4). Drive from the same per-frame inside-noFlyR test; cap below the
+      bloom threshold so it glows, not blows out. Cheap; classifier untouched; keep build green and 60 fps.
+- [ ] D41. Ambient threat border: a thin full-screen edge vignette (pure DOM/CSS overlay) that fades to a
+      low red glow whenever ≥1 HIGH track is inside SITE.noFlyR and clears otherwise — a peripheral
+      "condition red" ambient cue that reinforces urgency for the live demo without occluding the scene
+      (R1.4 unmistakable, R4.3 ingress beat). Toggle a body/overlay class each frame from the live count;
+      cheap; classifier untouched; keep build + typecheck green.
 
 ## Done when
 Waves 1-3 + Discovered checked or blocked; `npm run typecheck` + `npm run build` green; the
