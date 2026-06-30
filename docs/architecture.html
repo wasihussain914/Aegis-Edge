@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Aegis-Edge — AWS Edge+Cloud Architecture (Cooperative C-UAS)</title>
+<style>
+  :root{
+    --bg:#070b12; --panel:#0e1626; --panel2:#10203a; --edge:#13251c; --cloud:#0d2233;
+    --line:#2a3a55; --ink:#dce8fb; --mut:#8aa3c7; --acc:#ffb020; --grn:#5dd6a0;
+    --red:#ff6b78; --blu:#5fc8ff; --vio:#c08bf0;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:radial-gradient(1200px 600px at 50% -10%,#0d1830,#070b12);color:var(--ink);
+    font:14px/1.45 ui-sans-serif,system-ui,"Segoe UI",sans-serif;padding:26px 30px 40px}
+  h1{font-size:21px;letter-spacing:.02em}
+  h1 small{display:block;font-size:12.5px;color:var(--mut);font-weight:400;margin-top:4px;letter-spacing:.04em}
+  .wrap{max-width:1180px;margin:0 auto}
+  .band{border:1px solid var(--line);border-radius:14px;padding:14px 16px 16px;margin-top:16px;position:relative;background:linear-gradient(180deg,rgba(255,255,255,.015),transparent)}
+  .band > .lbl{position:absolute;top:-10px;left:16px;font-size:10.5px;letter-spacing:.14em;
+    text-transform:uppercase;background:var(--bg);padding:0 8px;color:var(--mut)}
+  .edgeband{border-color:#2f6f4a}.edgeband>.lbl{color:var(--grn)}
+  .cloudband{border-color:#2f6f9e}.cloudband>.lbl{color:var(--blu)}
+  .row{display:flex;gap:14px;flex-wrap:wrap}
+  .col{flex:1 1 0;min-width:300px}
+  .unit{border:1px solid #2f6f4a;border-radius:12px;padding:12px;background:linear-gradient(180deg,#0f1d15,#0c1410)}
+  .unit h3{font-size:13px;color:var(--grn);letter-spacing:.04em}
+  .unit h3 span{color:var(--mut);font-weight:400;font-size:11px}
+  .card{border:1px solid var(--line);border-radius:9px;padding:8px 10px;margin-top:8px;background:#0c1320}
+  .card .svc{font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--acc)}
+  .card .t{font-size:12.5px;color:var(--ink);margin-top:1px;font-weight:600}
+  .card .d{font-size:11px;color:var(--mut);margin-top:2px}
+  .killchain{border-color:#7df0b8;background:#0c1f16}
+  .killchain .svc{color:var(--grn)}
+  .nochain{border-color:#45506e}
+  .cloudcards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  @media(max-width:900px){.cloudcards{grid-template-columns:repeat(2,1fr)}}
+  .ccard{border:1px solid #2f6f9e;border-radius:10px;padding:9px 11px;background:linear-gradient(180deg,#0e1f30,#0a1626)}
+  .ccard .svc{color:var(--blu)}
+  .link16{display:flex;align-items:center;justify-content:center;flex:0 0 64px}
+  .link16 .pill{writing-mode:vertical-rl;text-align:center;border:1px dashed var(--acc);color:var(--acc);
+    border-radius:999px;padding:14px 7px;font-size:11px;letter-spacing:.14em;background:rgba(255,176,32,.06)}
+  .flow{display:flex;justify-content:center;color:var(--mut);font-size:18px;margin:6px 0 0}
+  .iface{margin-top:8px;border-top:1px dashed var(--line);padding-top:8px}
+  .iface b{color:var(--ink)}
+  .chip{display:inline-block;font-size:10.5px;color:var(--mut);border:1px solid var(--line);
+    border-radius:999px;padding:2px 9px;margin:3px 4px 0 0;background:#0c1320}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px}
+  @media(max-width:760px){.grid2{grid-template-columns:1fr}}
+  .note{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--panel)}
+  .note h4{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--acc);margin-bottom:6px}
+  .note ul{margin:0;padding-left:16px}.note li{margin:4px 0;font-size:12.5px;color:var(--ink)}
+  .note li span{color:var(--mut)}
+  .scorebar{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+  .score{flex:1 1 0;min-width:200px;border:1px solid #2f6f4a;border-radius:10px;padding:10px 12px;background:#0d1a13}
+  .score b{color:var(--grn);font-size:12px;letter-spacing:.04em}
+  .score p{font-size:11.5px;color:var(--mut);margin-top:3px}
+  .foot{margin-top:16px;font-size:11px;color:var(--mut);text-align:center;letter-spacing:.03em}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Aegis-Edge — Cooperative Counter-UAS · Edge + Cloud Reference Architecture
+    <small>Two units share one tactical picture over Link-16; the deterministic core decides at the edge; AWS GovCloud (DoD IL5) explains &amp; anchors the audit. The LLM is provably off the kill chain.</small>
+  </h1>
+
+  <!-- SENSORS -->
+  <div class="band"><span class="lbl">Sensors (per unit) — non-cooperative, report-level</span>
+    <div class="row">
+      <div class="col"><div class="card"><div class="svc">Marine Beachhead</div><div class="t">Radar (broad) · RF · EO/IR</div><div class="d">Detections as processed reports → edge node</div></div></div>
+      <div class="col"><div class="card"><div class="svc">Army Tank Column</div><div class="t">Radar (limited) · RF · EO/IR</div><div class="d">Smaller radar footprint — the reason data-sharing matters</div></div></div>
+    </div>
+  </div>
+  <div class="flow">▼ &nbsp; detections (typed <b>TrackFeatures</b> contract)</div>
+
+  <!-- EDGE -->
+  <div class="band edgeband"><span class="lbl">Edge tier — runs disconnected (DDIL). Decides in &lt;1 ms, LLM-free.</span>
+    <div class="row">
+      <!-- Beachhead edge node -->
+      <div class="col"><div class="unit">
+        <h3>MARINE BEACHHEAD <span>· stationary · SHORAD + RF Zapper</span></h3>
+        <div class="card"><div class="svc">AWS IoT Greengrass v2 · Snowball Edge</div><div class="t">Edge runtime (rugged, GovCloud-managed)</div></div>
+        <div class="card killchain"><div class="svc">ON THE KILL CHAIN · deterministic</div><div class="t">Threat-Call + Coordination Core</div><div class="d">classify → ROE who-shoots → shoot-and-shout → operator-mode gate · SageMaker Neo edge model · pure, tested, repeatable</div></div>
+        <div class="card nochain"><div class="svc">Operator console</div><div class="t">3D/2D air picture · human-in-the-loop gate</div></div>
+        <div class="card nochain"><div class="svc">Hash-chained log buffer</div><div class="t">Signs locally · syncs on reconnect</div></div>
+      </div></div>
+
+      <!-- Link-16 -->
+      <div class="link16"><div class="pill">LINK-16 / TADIL-J · CoT/TAK · fused tracks + shoot-and-shout</div></div>
+
+      <!-- Tank Column edge node -->
+      <div class="col"><div class="unit">
+        <h3>ARMY TANK COLUMN <span>· mobile · SLAMRAAM + RF Zapper</span></h3>
+        <div class="card"><div class="svc">AWS IoT Greengrass v2 · Snowcone</div><div class="t">Edge runtime (on-the-move)</div></div>
+        <div class="card killchain"><div class="svc">ON THE KILL CHAIN · deterministic</div><div class="t">Threat-Call + Coordination Core</div><div class="d">same module, swapped sensors/effectors · fuses the Beachhead's tracks over Link-16</div></div>
+        <div class="card nochain"><div class="svc">Operator console</div><div class="t">Air picture · perspective + comms-case toggles</div></div>
+        <div class="card nochain"><div class="svc">Hash-chained log buffer</div><div class="t">Signs locally · syncs on reconnect</div></div>
+      </div></div>
+    </div>
+    <div class="iface">
+      <b>Documented interfaces:</b>
+      <span class="chip">Edge↔Edge: Link-16/TADIL-J (CoT) — fused tracks + shoot-and-shout</span>
+      <span class="chip">Sensors→Core: <b>TrackFeatures</b> typed contract</span>
+      <span class="chip">Core→Cloud: <b>pipeline-events</b> envelope (MQTT)</span>
+      <span class="chip">Out: ASFF / CoT findings</span>
+    </div>
+  </div>
+  <div class="flow">▼ &nbsp; on reconnect: MQTT telemetry up · explanations + ledger anchor down &nbsp; (the kill chain never crosses this line)</div>
+
+  <!-- CLOUD -->
+  <div class="band cloudband"><span class="lbl">AWS GovCloud (US) — DoD Impact Level 5 · FedRAMP High · explains &amp; anchors only</span>
+    <div class="cloudcards">
+      <div class="ccard"><div class="svc">AWS IoT Core</div><div class="t">Device gateway</div><div class="d">MQTT ingest · device shadows · fleet registry</div></div>
+      <div class="ccard"><div class="svc">Amazon Bedrock (Claude / Nova)</div><div class="t">Explanation layer — OFF the kill chain</div><div class="d">narrates the deterministic call; IAM-denied from the ledger</div></div>
+      <div class="ccard"><div class="svc">AWS Lambda</div><div class="t">Narration broker · reconcile</div><div class="d">re-verifies the classification before narrating</div></div>
+      <div class="ccard"><div class="svc">Amazon S3 (Object-Lock WORM)</div><div class="t">Signed audit ledger anchor</div><div class="d">hash-chained · Merkle inclusion · immutable</div></div>
+      <div class="ccard"><div class="svc">AWS KMS</div><div class="t">Ed25519 signing · SSE-KMS</div><div class="d">key rotation on</div></div>
+      <div class="ccard"><div class="svc">IAM Identity Center / Cognito</div><div class="t">Zero-trust identity</div><div class="d">two-person authorization · device certs</div></div>
+      <div class="ccard"><div class="svc">CloudTrail · CloudWatch · Security Hub</div><div class="t">Audit · monitoring (ASFF)</div><div class="d">per-stage trails · findings</div></div>
+      <div class="ccard"><div class="svc">Terraform (IaC) · Amazon Location</div><div class="t">Single source of truth · geo</div><div class="d">plan in CI, apply gated</div></div>
+    </div>
+  </div>
+
+  <!-- HOW IT SCORES -->
+  <div class="scorebar">
+    <div class="score"><b>Edge + Cloud — both, by design</b><p>Decision runs at the edge on Greengrass, offline &amp; deterministic; Bedrock + audit live in GovCloud and are reached only on reconnect. The split is the architecture.</p></div>
+    <div class="score"><b>Clear boundaries &amp; interfaces</b><p>Three named contracts (Link-16/CoT, TrackFeatures, pipeline-events) + the hard "LLM-off-kill-chain" boundary, enforced at the IAM layer.</p></div>
+    <div class="score"><b>Modular &amp; partner-integrable</b><p>The core is a drop-in module — partners swap sensors/effectors at the typed seams and consume the ASFF/CoT ledger downstream. One engine, two units, many missions.</p></div>
+  </div>
+
+  <div class="grid2">
+    <div class="note"><h4>Why this scores Architecture &amp; Integration (20%)</h4>
+      <ul>
+        <li><b>Edge + cloud:</b> <span>Greengrass v2 / Snowball edge node decides offline; GovCloud explains + anchors. DDIL-survivable.</span></li>
+        <li><b>Boundaries:</b> <span>the kill chain is fully on-edge and never crosses into Bedrock; the audit is immutable (S3 WORM + KMS).</span></li>
+        <li><b>Interfaces:</b> <span>Link-16/CoT between units; TrackFeatures into the core; pipeline-events up; ASFF/CoT out — all documented.</span></li>
+        <li><b>Modularity:</b> <span>swap sensors, effectors, or the unit — the deterministic spine is unchanged; one engine drives both units.</span></li>
+      </ul>
+    </div>
+    <div class="note"><h4>Maps to the cooperative DoD</h4>
+      <ul>
+        <li><span>Two units + Link-16 fusion →</span> the Edge tier + Link-16 connector (DOD-1/3/4/5)</li>
+        <li><span>ROE who-shoots + shoot-and-shout →</span> Coordination Core (DOD-7/8)</li>
+        <li><span>Operator modes + human gate →</span> Core gate + IAM 2-person auth (DOD-9/10/14)</li>
+        <li><span>Comms Case 1/2 degradation →</span> Link-16 + reconnect path (DOD-12)</li>
+        <li><span>Explainability →</span> Bedrock, off the kill chain (DOD-11)</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="foot">Aegis-Edge · synthetic/representative data · self-assessment posture, not an ATO · transition: AFWERX SBIR Phase II→III OTA under the Joint C-sUAS Office</div>
+</div>
+</body>
+</html>
