@@ -28,11 +28,11 @@ added smoke tests. Keep the dusk/command-center aesthetic. Map every task to its
       to BOTH after; show the fusion moment. (DOD-3, DOD-5)
 
 ## Phase D — engagement, negotiation, explanation
-- [ ] D1. Each tick run `selectShooter`/`resolveEngagement` on hostiles; a running **event /
+- [x] D1. Each tick run `selectShooter`/`resolveEngagement` on hostiles; a running **event /
       negotiation log** (detections, link up/down, who-shoots, shoot-and-shout, approvals). (DOD-7)
-- [ ] D2. **Shoot-and-shout**: on fire, broadcast + add to `engaged`; the other unit stands down
+- [x] D2. **Shoot-and-shout**: on fire, broadcast + add to `engaged`; the other unit stands down
       on that track (already enforced by `selectShooter`). Show it in scene + log. (DOD-8)
-- [ ] D3. Click a drone → panel shows **classification rationale AND engagement rationale**
+- [x] D3. Click a drone → panel shows **classification rationale AND engagement rationale**
       ("who shoots + why this weapon"), plain English (template now, Bedrock when creds). (DOD-11)
 
 ## Phase E — operator controls
@@ -53,12 +53,12 @@ added smoke tests. Keep the dusk/command-center aesthetic. Map every task to its
 - [x] DOD-3 out-of-range air pictures differ
 - [x] DOD-4 Link-16 establishes w/ visual + status
 - [x] DOD-5 link-up fuses; ≥1 single-unit track becomes shared
-- [ ] DOD-6 blue/red/green drones; ≥1 red drives an engagement
-- [ ] DOD-7 ROE+position negotiation resolves an engagement (in log)
-- [ ] DOD-8 shoot-and-shout; other unit stands down
+- [x] DOD-6 blue/red/green drones; ≥1 red drives an engagement
+- [x] DOD-7 ROE+position negotiation resolves an engagement (in log)
+- [x] DOD-8 shoot-and-shout; other unit stands down
 - [ ] DOD-9 RF needs human; SHORAD/SLAMRAAM human-or-machine per mode
 - [ ] DOD-10 Manual/Combined/Autonomous change the approver, live
-- [ ] DOD-11 click → classification + engagement rationale, plain English
+- [x] DOD-11 click → classification + engagement rationale, plain English
 - [ ] DOD-12 Case1↔Case2; Case2 shows stale/delayed/failed/fallback w/ callouts
 - [ ] DOD-13 perspective switch Beachhead ↔ Column
 - [ ] DOD-14 every human-approval point pauses on a gate; nothing auto-fires past

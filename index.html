@@ -91,6 +91,9 @@
       /* --- coop: Link-16 status + air-picture readout + faction key (C1/C2/B3) --- */
       #coop { margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(80,140,220,.18); }
       #coop .sub { font-size: 11px; margin-top: 3px; font-variant-numeric: tabular-nums; }
+      #cooplog { margin-top: 4px; display: flex; flex-direction: column; gap: 2px; }
+      #cooplog .ev { font-size: 10.5px; line-height: 1.35; color: #b9cbe6; font-variant-numeric: tabular-nums;
+        border-left: 2px solid rgba(255,210,77,.5); padding-left: 6px; }
       #flegend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 7px; }
       #flegend .lg { display: flex; align-items: center; gap: 5px; font-size: 10.5px;
         color: #9db4d6; letter-spacing: .04em; }
@@ -119,6 +122,8 @@
           <span class="lg"><span class="sw" style="background:#ff4d5e;color:#ff4d5e"></span>HOSTILE</span>
           <span class="lg"><span class="sw" style="background:#5dd6a0;color:#5dd6a0"></span>NEUTRAL</span>
         </div>
+        <div class="sub" id="coologh" style="margin-top:6px;color:#7e97bd;">EVENT / NEGOTIATION LOG</div>
+        <div id="cooplog"></div>
       </div>
       <div id="cams">
         <button class="cam active" data-view="oblique">Oblique</button>

@@ -273,3 +273,31 @@ Newest at the bottom. One line per iteration: date/time, task, how verified.
   typecheck` clean, `npm test` 26/26 (4 new), `npm run build` green (dist 575.67 kB; pre-existing
   three.js chunk-size warning only). Single-site demo + its tests untouched; LLM off every decision.
   Next: Phase D (D1 event/negotiation log, D2 shoot-and-shout in scene, D3 click→rationale) → DOD-6/7/8/11.
+- 2026-06-30 14:2x CDT — Phase D done (D1+D2+D3) (Chopper): engagement loop, shoot-and-shout,
+  click→rationale. **Deterministic core (new, tested)** `src/coop/engagement.ts`: `planEngagements()`
+  resolves EVERY hostile in the fused picture each tick — runs the tested `selectShooter` (ROE
+  cheapest in-range, tie-break by position) + `resolveEngagement` (operator-mode gate), maps each to a
+  coarse `statusOf` (FIRE/HOLD/GATE/READY/NONE), and on a FIRE adds the track to a persistent
+  `engaged` set so shoot-and-shout stands the OTHER unit down (no double-engage) — returning the
+  updated set to carry across ticks. Plus `engagementRationale()` for the click panel. **6 new tests**
+  (`engagement.test.ts`) over the REAL scenario geometry at standoff/link-up: DOD-6/7 a red
+  (HOSTILE-1) drives a *cooperative* engagement — the Column fires SLAMRAAM on a track it can't see
+  itself, Beachhead stands down; DOD-8 the engaged track is NOT re-selected next tick (shoot-and-shout
+  persists); DOD-9 the closer hostile's cheapest weapon is the RF Zapper → HOLDs for a human in
+  autonomous, GATEs in manual; `statusOf` mapping; DOD-11 non-hostile holds fire / hostile names
+  who-shoots+why. **Render (additive)** `src/main.ts`: per-tick engagement step drives a running
+  **EVENT / NEGOTIATION LOG** (#cooplog — link up/down, per-unit detections, who-shoots, shoot-and-
+  shout, HOLD-for-human) logging CHANGES only (status/detection transition trackers, no per-frame
+  spam); a bright **fire tracer** from shooter→target on the firing tick; an **ENGAGED** pulsing
+  ground ring on fired hostiles. Operator mode fixed at `autonomous` here so a missile clears and the
+  cooperative engagement actually plays out, while the RF-Zapper hostile visibly HOLDs (the contrast
+  that motivates Phase-E controls; the live switch is E1). **D3** click a coop drone → panel shows
+  BOTH a classification rationale (faction+threat, mirrors B3 coloring) AND the core's engagement
+  rationale ("who shoots + why this weapon"), plain-English template (Bedrock-ready, LLM off the
+  decision); click raycast now spans single-site + coop drones, nearest wins. `index.html`: #cooplog
+  block + CSS. **DoD checked: DOD-6, DOD-7, DOD-8, DOD-11** (D1/D2/D3 boxes too). DOD-9/10/14 left
+  UNCHECKED — the core enforces & tests them but the *live* operator-mode switch + human-gate pause is
+  Phase E. Verified: `npm run typecheck` clean, `npm test` 32/32 pass (6 new), `npm run build` green
+  (dist 581.77 kB; pre-existing three.js chunk-size warning only). Single-site demo + its tests
+  untouched; LLM off every decision. Next: Phase E (E1 operator-mode switch, E2 comms Case1↔Case2,
+  E3 perspective switch, E4 gate pause) → DOD-9/10/12/13/14.

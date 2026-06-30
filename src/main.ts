@@ -18,8 +18,9 @@ import { classify, explainTemplate, type Classification } from "./model/threatCa
 import { fetchNarration } from "./narrate.js";
 import { MARINE_BEACHHEAD, tankColumnAt, columnPositionAt, COOP_TRACKS, coopLinkUpAt } from "./data/coopScenario.js";
 import { unitCoverages } from "./coop/coverage.js";
-import { unitSees, airPicture } from "./coop/coordination.js";
-import type { Unit, Track, Faction } from "./coop/types.js";
+import { unitSees, airPicture, labelUnit } from "./coop/coordination.js";
+import { planEngagements, engagementRationale } from "./coop/engagement.js";
+import type { Unit, Track, Faction, OperatorMode } from "./coop/types.js";
 
 const THREAT_COLOR: Record<string, number> = { HIGH: 0xff4d5e, MED: 0xffc14d, LOW: 0x5dd6a0, NONE: 0x6fa8ff };
 
@@ -454,7 +455,10 @@ const coopUnits: CoopUnitView[] = [];
 const FACTION_COLOR: Record<Faction, number> = { friendly: 0x6fa8ff, hostile: 0xff4d5e, neutral: 0x5dd6a0 };
 const FACTION_LABEL: Record<Faction, string> = { friendly: "FRIENDLY", hostile: "HOSTILE", neutral: "NEUTRAL" };
 const COOP_DRONE_ALT = 95;
-interface CoopDroneView { track: Track; group: THREE.Group; rotors: THREE.Object3D[]; phase: number; }
+interface CoopDroneView {
+  track: Track; group: THREE.Group; body: THREE.Mesh; rotors: THREE.Object3D[]; phase: number;
+  ring: THREE.Mesh;       // D2: "ENGAGED" ground ring, lit once a hostile is fired on
+}
 const coopDrones: CoopDroneView[] = [];
 for (const t of COOP_TRACKS) {
   const color = FACTION_COLOR[t.faction];
@@ -463,8 +467,14 @@ for (const t of COOP_TRACKS) {
   scene.add(parts.group);
   const label = makeLabel(`${t.id} · ${FACTION_LABEL[t.faction]}`, color);
   label.position.set(t.pos.x, COOP_DRONE_ALT + 16, t.pos.z); scene.add(label);
+  // D2: a flat ground ring under each hostile that lights when it has been engaged (shoot-and-shout)
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(10, 13, 40),
+    new THREE.MeshBasicMaterial({ color: 0xffd24d, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false })
+  );
+  ring.rotation.x = -Math.PI / 2; ring.frustumCulled = false; scene.add(ring);
   const phase = ([...t.id].reduce((a, c) => a + c.charCodeAt(0), 0) % 360) * (Math.PI / 180);
-  coopDrones.push({ track: t, group: parts.group, rotors: parts.rotors, phase });
+  coopDrones.push({ track: t, group: parts.group, body: parts.body, rotors: parts.rotors, phase, ring });
 }
 
 // --- Link-16 + fusion (C1/C2, DOD-3/4/5) ---
@@ -492,6 +502,38 @@ for (const ui of [0, 1] as const) for (const d of coopDrones) {
 const link16El = document.getElementById("link16")!;
 const airpicEl = document.getElementById("airpic")!;
 let linkWasUp = false;
+
+// --- Phase D: engagement loop, shoot-and-shout, event/negotiation log (DOD-6/7/8) ---
+// The deterministic core (coop/engagement.planEngagements) resolves every hostile each tick; we only
+// render its outcomes — a running event log, a fire tracer from shooter→target, and the "ENGAGED"
+// ring + stand-down callout. The operator mode is fixed here in Phase D (the live switch is Phase E);
+// autonomous lets a missile clear so a cooperative engagement actually plays out on screen, while the
+// RF-Zapper hostile HOLDs for a human — the contrast that motivates the Phase-E controls.
+let operatorMode: OperatorMode = "autonomous";
+const engaged = new Set<string>();          // shoot-and-shout: tracks already fired on (persists across ticks)
+const coopLogEl = document.getElementById("cooplog")!;
+const coopLog: string[] = [];               // newest first; capped for the HUD
+function logEvent(line: string, tick: number): void {
+  const ts = `T+${Math.floor(tick)}s`;
+  coopLog.unshift(`${ts} · ${line}`);
+  if (coopLog.length > 7) coopLog.length = 7;
+  coopLogEl.innerHTML = coopLog.map((l) => `<div class="ev">${l}</div>`).join("");
+}
+// transition trackers so the log records CHANGES, not one line per frame
+const loggedStatus = new Map<string, string>();   // last logged status per hostile track
+const seenByUnit: [Set<string>, Set<string>] = [new Set(), new Set()]; // last picture per unit (detection events)
+
+// fire tracer: a short-lived bright line from the shooter to the target when a track is engaged
+interface Tracer { line: THREE.Line; pos: Float32Array; ttl: number; }
+const tracers: Tracer[] = [];
+function spawnTracer(from: THREE.Vector3, to: THREE.Vector3): void {
+  const pos = new Float32Array([from.x, from.y, from.z, to.x, to.y, to.z]);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xffe08a, transparent: true, opacity: 1 }));
+  line.frustumCulled = false; scene.add(line);
+  tracers.push({ line, pos, ttl: 1 });
+}
 
 // --- drones ---
 interface Live {
@@ -706,13 +748,46 @@ function selectTrack(l: Live): void {
   showPanel(l);
 }
 
+// D3: a coop drone click shows BOTH a classification rationale and an engagement rationale (DOD-11).
+// Deterministic templates from the core — the LLM may rephrase later, never the call. The faction +
+// threat read mirrors the B3 coloring; the engagement line is the core's resolveEngagement rationale.
+function coopClassRationale(t: Track): string {
+  if (t.faction === "hostile")
+    return `No friendly IFF/Link-16 squawk and tracking toward the defended area — classified HOSTILE (threat ${t.threat}). Eligible for engagement under ROE.`;
+  if (t.faction === "friendly")
+    return `Valid friendly IFF / Link-16 participant — classified FRIENDLY. Protected; never engaged.`;
+  return `Non-cooperative but non-threatening profile (transiting, no weapons track) — classified NEUTRAL. Monitored, not engaged.`;
+}
+function selectCoopDrone(d: CoopDroneView): void {
+  selected = null; overlay.style.display = "none";   // coop panel has no leader line
+  const t = d.track;
+  const colNow = tankColumnAt(clock.elapsedTime, 1);
+  const linkNow = coopLinkUpAt(clock.elapsedTime, "persistent", 1);
+  const eng = engagementRationale(t, [MARINE_BEACHHEAD, colNow], linkNow, operatorMode, engaged);
+  const fcol = "#" + (FACTION_COLOR[t.faction] & 0xffffff).toString(16).padStart(6, "0");
+  panel.innerHTML =
+    `<span class="tag" style="background:${fcol}22;color:${fcol};border:1px solid ${fcol}">${FACTION_LABEL[t.faction]}</span>` +
+    `<span style="font-size:11px;color:#7e97bd;margin-left:6px;">TRACK ${t.id}</span>` +
+    `<h2>${FACTION_LABEL[t.faction]} · threat ${t.threat}</h2>` +
+    `<div class="why"><span class="src src-off">○ classification</span>${coopClassRationale(t)}</div>` +
+    `<div class="why" style="margin-top:8px;"><span class="src src-ai">◆ engagement</span>${eng}</div>` +
+    `<div class="row" style="margin-top:10px;color:#5f7799;"><span>mode ${operatorMode} · ${linkNow ? "link up" : "link down"}</span><span>LLM off kill-chain</span></div>`;
+  panel.classList.add("show");
+}
+
 addEventListener("click", (e) => {
   mouse.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
   ray.setFromCamera(mouse, camera);
-  const hit = ray.intersectObjects(live.map((l) => l.body), false)[0];
-  if (!hit) { panel.classList.remove("show"); selected = null; overlay.style.display = "none"; return; }
-  stopDemo();                                        // operator takes over from the scripted run
-  selectTrack(live.find((x) => x.body === hit.object)!);
+  const liveHit = ray.intersectObjects(live.map((l) => l.body), false)[0];
+  const coopHit = ray.intersectObjects(coopDrones.map((d) => d.body), false)[0];
+  // pick the nearest hit across the single-site and coop drone sets
+  if (coopHit && (!liveHit || coopHit.distance < liveHit.distance)) {
+    stopDemo();
+    selectCoopDrone(coopDrones.find((d) => d.body === coopHit.object)!);
+    return;
+  }
+  if (liveHit) { stopDemo(); selectTrack(live.find((x) => x.body === liveHit.object)!); return; }
+  panel.classList.remove("show"); selected = null; overlay.style.display = "none"; // clicked empty
 });
 
 // Monotonic token so a slow Bedrock reply for an old click can't overwrite a newer selection.
@@ -1007,6 +1082,50 @@ function animate() {
     (link && cPic.size > 0 ? ` · ${[...bPic].filter((id) => cPic.has(id)).length} shared` : "");
   if (link && !linkWasUp) airpicEl.style.color = "#9fe8ff"; // flash the fusion moment
   else if (!link) airpicEl.style.color = "#6f87ad";
+
+  // --- Phase D engagement step (DOD-6/7/8): the core resolves every hostile; we log + render it ---
+  // 1) link up/down transition → one log line
+  if (link !== linkWasUp) {
+    logEvent(link ? "LINK-16 ESTABLISHED — air pictures fused." : "LINK-16 DROPPED — units revert to self-protect.", clock.elapsedTime);
+  }
+  // 2) new hostile detections per unit (entering a unit's picture) → one log line each
+  for (let ui = 0 as 0 | 1; ui < 2; ui++) {
+    const pic = ui === 0 ? bPic : cPic;
+    for (const t of COOP_TRACKS) {
+      if (t.faction === "hostile" && pic.has(t.id) && !seenByUnit[ui].has(t.id))
+        logEvent(`${labelUnit(coopUnitObjs[ui].id)} detects ${t.id}.`, clock.elapsedTime);
+    }
+    seenByUnit[ui] = new Set(pic);
+  }
+  // 3) resolve engagements deterministically; log status CHANGES; fire a tracer on the firing tick
+  const plan = planEngagements(COOP_TRACKS, coopUnitObjs, link, operatorMode, engaged);
+  for (const o of plan.outcomes) {
+    const prev = loggedStatus.get(o.track.id);
+    if (o.status !== "NONE" && o.status !== prev) {
+      logEvent(o.logLine, clock.elapsedTime);
+      if (o.fired) {
+        const sIdx = o.decision.shooter === coopUnitObjs[0].id ? 0 : 1;
+        const sp = coopUnits[sIdx].group.position;
+        const dp = coopDrones.find((d) => d.track.id === o.track.id)!.group.position;
+        spawnTracer(new THREE.Vector3(sp.x, 14, sp.z), dp.clone());
+      }
+    }
+    loggedStatus.set(o.track.id, o.status);
+  }
+  for (const id of plan.engaged) engaged.add(id);  // shoot-and-shout persists across ticks
+  // 4) render: ENGAGED ring on fired hostiles + fade out the fire tracers
+  for (const d of coopDrones) {
+    const ringMat = d.ring.material as THREE.MeshBasicMaterial;
+    const target = engaged.has(d.track.id) ? 0.45 + 0.3 * ((Math.sin(clock.elapsedTime * 5) + 1) / 2) : 0;
+    ringMat.opacity += (target - ringMat.opacity) * Math.min(1, dt * 4);
+    d.ring.position.set(d.group.position.x, 2, d.group.position.z);
+  }
+  for (let i = tracers.length - 1; i >= 0; i--) {
+    const tr = tracers[i];
+    tr.ttl -= dt * 1.4;
+    if (tr.ttl <= 0) { scene.remove(tr.line); tracers.splice(i, 1); continue; }
+    (tr.line.material as THREE.LineBasicMaterial).opacity = Math.max(0, tr.ttl);
+  }
   linkWasUp = link;
   for (const l of live) {
     // Arc-length lookups: u is fraction of distance, so ground speed is constant in m/s
