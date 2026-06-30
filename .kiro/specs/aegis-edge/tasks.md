@@ -283,6 +283,17 @@ if stuck. **The loop appends new tasks under "Discovered" as it learns.** Verify
       already follows `selected`) — so the operator can drop a selection without clicking empty space.
       Mirror the existing click-miss deselect path; do not disturb the demo's own select/deselect.
       Pure DOM/state; classifier untouched; keep build + typecheck green.
+- [ ] D54. Threat-weighted label-fade floor (builds on D13): D13 dims every non-selected label uniformly
+      with range, but R1.4 says HIGH must stay unmistakable. Give each label a per-threat opacity floor in
+      the distance fade — HIGH labels never dip below ~0.65, MED ~0.45, LOW/NONE keep the current ~0.22 —
+      so a distant hostile's pill stays legible while benign clutter still recedes (R1.4, R1.6, R2). Reuse
+      the D13 lerp; key the floor off `l.cls.threat`; selected stays full. Cheap; classifier untouched;
+      keep build + typecheck green and 60 fps.
+- [ ] D55. North-up compass rose in the HUD (R1.5 orientation): a small fixed 2D canvas (or cheap SVG) in a
+      HUD corner showing a compass card that counter-rotates with the camera azimuth so "north" always
+      points true as the operator orbits the oblique view — pairs with the north-up D20 minimap to keep the
+      command picture oriented (R1.5). Compute heading from the camera→target vector each frame; redraw only
+      when the rounded bearing changes (cheap). Pure DOM/canvas; classifier untouched; keep build green.
 
 ## Done when
 Waves 1-3 + Discovered checked or blocked; `npm run typecheck` + `npm run build` green; the
