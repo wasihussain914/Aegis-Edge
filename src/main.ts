@@ -342,6 +342,12 @@ for (const s of sensors) {
   const post = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 16), new THREE.MeshStandardMaterial({ color: col }));
   post.position.set(s.x, 8, s.z); scene.add(post);
 
+  // D9: a modality-tinted ID label floating above each sensor post (RAD-1 / RF-1 / EO-1), so the
+  // now-distinct coverage shapes are named at a glance. Reuses the track makeLabel pill (hoisted).
+  const sensorLabel = makeLabel(s.id, col);
+  sensorLabel.position.set(s.x, 26, s.z);
+  scene.add(sensorLabel);
+
   const grp = new THREE.Group(); grp.position.set(s.x, 0, s.z); scene.add(grp);
   const yaw = new THREE.Group(); grp.add(yaw);
 

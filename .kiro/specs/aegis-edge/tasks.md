@@ -66,7 +66,7 @@ if stuck. **The loop appends new tasks under "Discovered" as it learns.** Verify
       its strobe / bump trail opacity) and surface a fused-track count in the HUD clock line. Ties
       the new sensor↔track association into at-a-glance readability (R1.3, R1.4). Deterministic +
       cheap; classifier untouched. Keep build green and 60 fps.
-- [ ] D9. Sensor ID labels: a small color-coded canvas-sprite label (RAD-1 / RF-1 / EO-1, tinted by
+- [x] D9. Sensor ID labels: a small color-coded canvas-sprite label (RAD-1 / RF-1 / EO-1, tinted by
       modality) floating above each sensor post so the now-distinct coverage shapes are named at a
       glance (R1.3 readability). One shared sprite material per sensor; keep it cheap and 60 fps.
 - [ ] D10. Detection-line polish: instead of a hard on/off pop, fade each detection line's opacity

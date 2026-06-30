@@ -192,3 +192,9 @@ Newest at the bottom. One line per iteration: date/time, task, how verified.
 - Set is cleared+recomputed each frame; strobe/trail brightening reads last frame's state (1-frame
   lag, imperceptible). Deterministic, cheap, classifier untouched.
 - Verified: `npm run typecheck` + `npm run build` both green; `npm test` 5/5 pass.
+- 2026-06-30 05:27 CDT — D9 done (Chopper). Sensor ID labels: each sensor post now floats a
+  modality-tinted pill (RAD-1 blue / RF-1 violet / EO-1 teal) at y=26 above the post, reusing the
+  track `makeLabel` canvas-sprite (hoisted) tinted by `MOD_COLOR[s.modality]`. Names the now-distinct
+  coverage shapes (radar dome / RF wedge / EO frustum) at a glance (R1.3 readability). One sprite per
+  sensor (3 total); depthTest off so they read over geometry. Classifier untouched.
+- Verified: `npm run typecheck` + `npm run build` both green.
