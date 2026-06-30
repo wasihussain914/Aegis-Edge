@@ -223,3 +223,18 @@ Newest at the bottom. One line per iteration: date/time, task, how verified.
   regardless of range. One distanceTo + clamped lerp per track per frame — cheap; classifier
   untouched (R1.6, R2). Verified: `npm run typecheck` + `npm run build` both green.
 - 2026-06-30 13:3x CDT — COOP build started (Chopper). New objective: cooperative two-unit demo (Marine Beachhead + Army Tank Column, Link-16 fusion, ROE who-shoots, comms Case1/2, operator modes). Spec + 14-item DoD + todolist at .kiro/specs/coop-defense/. Phase A DONE: src/coop/{types,coordination}.ts = deterministic core (unitSees/airPicture fusion, linkUp, commsAvailable ~70%, selectShooter ROE cheapest-in-range + shoot-and-shout, resolveEngagement weapon-auth + mode gate). 10 new tests (coordination.test.ts) cover DOD-3/5/7/8/9/10/12/14 — all 15 tests green, typecheck + build green. Loop armed (COOP-LOOP.md) to grind Phases B–F until all DoD items pass.
+- 2026-06-30 13:5x CDT — B1 done (Chopper). Cooperative scenario data + deterministic motion in
+  `src/data/coopScenario.ts`: **Marine Beachhead** (id beachhead, stationary, BROAD radar 500m,
+  SHORAD 400m + RF Zapper 250m, at origin) and **Army Tank Column** (id tank_column, mobile,
+  LIMITED radar 200m, SLAMRAAM 600m + RF Zapper 250m). `columnPositionAt(tick)` closes the Column
+  from x=900 toward the Beachhead at 9 m/s and clamps at x=200 standoff — same input → same output,
+  no randomness; `tankColumnAt(tick)` returns the Column Unit at that tick. `LINK_RANGE_M=600`
+  chosen so the Column starts OUT of link range and drives INTO it (the whole reason to share
+  tracks — its small radar). Same site-local meters frame as scenario.ts; pure data, no three.js.
+  4 new tests (`src/data/coopScenario.test.ts`): both units defined, Column starts >link-range &
+  closes inside it, monotonic-decreasing x then halt+clamp at standoff, radar limited vs Beachhead,
+  tankColumnAt mirrors columnPositionAt. DoD: DOD-1 data+motion (Column-moves-toward-Beachhead)
+  satisfied & tested — render half deferred to B2, so DOD-1 box stays unchecked until B2; DOD-2
+  radar-limited fact asserted here but its *visible* coverage is B2. Verified: `npm run typecheck`
+  clean, `npm test` 19/19 pass (4 new), `npm run build` green (dist 570.53 kB). Single-site demo
+  untouched. Next: B2 render both units + distinct sensor-coverage volumes.

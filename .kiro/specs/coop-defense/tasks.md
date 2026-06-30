@@ -12,9 +12,9 @@ added smoke tests. Keep the dusk/command-center aesthetic. Map every task to its
 - [x] A3. `src/coop/coordination.test.ts` — 10 tests covering DOD-3/5/7/8/9/10/12/14 logic. GREEN.
 
 ## Phase B — two units in the 3D scene
-- [ ] B1. Scenario: define **Marine Beachhead** (stationary, broad radar, SHORAD+RF) and **Army
+- [x] B1. Scenario: define **Marine Beachhead** (stationary, broad radar, SHORAD+RF) and **Army
       Tank Column** (mobile, LIMITED radar, SLAMRAAM+RF) in `src/data/coopScenario.ts`; the Column
-      moves toward the Beachhead over time. (DOD-1)
+      moves toward the Beachhead over time. (DOD-1 — data+motion done & tested; render is B2)
 - [ ] B2. Render both units in 3D with **distinct sensor-coverage volumes**; the Tank Column's
       radar dome is visibly smaller than the Beachhead's. (DOD-1, DOD-2)
 - [ ] B3. Drones render **blue (friendly) / red (hostile) / green (neutral)** from `faction`;
