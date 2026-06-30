@@ -44,7 +44,7 @@ added smoke tests. Keep the dusk/command-center aesthetic. Map every task to its
 - [x] E4. Every required human-approval point **pauses on a gate**; nothing fires past it. (DOD-14)
 
 ## Phase F — verify the whole checklist
-- [ ] F1. Add a coop scene/integration smoke test where feasible; walk all 14 DoD items; record
+- [x] F1. Add a coop scene/integration smoke test where feasible; walk all 14 DoD items; record
       pass/fail for each in BUILD-LOG. Flag any assumption made.
 
 ## DEFINITION OF DONE (the loop checks these off; STOP when all are ✓)

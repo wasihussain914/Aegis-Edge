@@ -323,3 +323,46 @@ Newest at the bottom. One line per iteration: date/time, task, how verified.
   Verified: `npm run typecheck` clean, `npm test` 34/34 pass (2 new), `npm run build` green
   (dist 585.91 kB; pre-existing three.js chunk-size warning only). Single-site demo + its tests
   untouched; LLM off every decision. Next: Phase F (F1 coop integration smoke test, walk all 14 DoD).
+- 2026-06-30 14:5x CDT — Phase F done (F1) (Chopper): coop integration smoke test + the full DoD
+  walk. New `src/coop/integration.test.ts` (11 tests) drives the REAL scenario data + deterministic
+  core end to end — the same functions the 3D scene calls each tick — and asserts every DoD behavior
+  where it COMPOSES across modules (scenario geometry → coverage → fusion → ROE/who-shoots → gate),
+  not the per-unit logic the unit tests already lock. Picks t=80 (Column closed to standoff x=200,
+  link in range) as the canonical engagement tick. **DoD walk — recorded pass/fail:**
+  - DOD-1 ✓ both units exist; columnPositionAt strictly decreases then clamps at standoff.
+  - DOD-2 ✓ unitCoverages → Column radarClass "limited", dome radius < Beachhead's.
+  - DOD-3 ✓ at t=0 (link down) Beachhead picture ≠ Column picture (Beachhead-only HOSTILE-1 vs
+    Column-only NEUTRAL-1).
+  - DOD-4 ✓ coopLinkUpAt false at t=0 (>600m) → true at standoff (≤600m).
+  - DOD-5 ✓ HOSTILE-1 unseen by the Column organically all run; absent from its picture w/o link,
+    present with link (single-unit → shared).
+  - DOD-6 ✓ friendly+hostile+neutral present; a red (HOSTILE-1) drives a FIRE.
+  - DOD-7 ✓ planEngagements resolves HOSTILE-1 → Column SLAMRAAM (cooperative: a track it can't see
+    itself, cheapest in-range by ROE), with a who-shoots logLine.
+  - DOD-8 ✓ on FIRE the Beachhead stands down + HOSTILE-1 joins `engaged`; the next tick re-selects
+    it as NONE (no double-engage).
+  - DOD-9 ✓ HOSTILE-2's cheapest effector is the RF Zapper → blocked in Autonomous (needs a human);
+    the SLAMRAAM auto-fires in Autonomous.
+  - DOD-10 ✓ same engagement, approvalGate.needed = 0 (Auto) / 1 (Combined) / 2 (Manual) — approver
+    changes live.
+  - DOD-11 ✓ engagementRationale names who-shoots + why for a hostile; "hold fire" for a friendly.
+  - DOD-12 ✓ Case 1 never drops in range; Case 2 drops on ≥1 in-range tick; commsHealth ages
+    LIVE → DELAYED → FAILED (self-protect) past the threshold.
+  - DOD-13 ✓ per-unit organic pictures differ (HOSTILE-1 organic to Beachhead, via-link to Column).
+  - DOD-14 ✓ any mode with a human seat → needed>0 and autoFire false (nothing fires past the gate).
+  **Assumptions flagged:** the walk verifies the deterministic core + scenario data that the renderer
+  draws verbatim; the 3D rendering itself (three.js draw calls, bloom, DOM) is validated by `npm run
+  build` + careful reasoning, not a headless WebGL test (no GL context in the node:test runner).
+  Verified: `npm run typecheck` clean, `npm test` 45/45 pass (11 new), `npm run build` green
+  (dist 585.91 kB; pre-existing three.js chunk-size warning only). Single-site demo + its tests
+  untouched; LLM off every decision.
+
+## 2026-06-30 14:5x CDT — COOP-DEFENSE COMPLETE — all 14 DoD items ✓
+All of Phases A–F are done and every Definition-of-Done item is checked in tasks.md, each backed by
+a test in the deterministic core (45 tests total across coordination / coverage / engagement /
+coopScenario / integration / threatCall, all green) and rendered additively in the dusk command-center
+scene without touching the single-site demo or its tests. The cooperative two-unit demo — Marine
+Beachhead + Army Tank Column, Link-16 fusion, ROE who-shoots, shoot-and-shout, Case 1/2 comms
+degradation, Manual/Combined/Autonomous operator modes with live human-approval gates — is feature
+complete. The LLM/Bedrock layer stays OFF every decision (it only re-phrases explanations and degrades
+to templates offline). Loop stop condition met; `wolfberg-coop-loop` cron retired.
