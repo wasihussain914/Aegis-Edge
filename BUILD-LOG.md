@@ -172,3 +172,11 @@ Newest at the bottom. One line per iteration: date/time, task, how verified.
   friendly (0192, fast R/C) banks wider/shallower (±0.3), the bird barely rolls (±0.18), hostiles
   stay tight (±0.6). Seeded a deterministic per-track `phase` from the id digits so motion is
   identical every run. Verified: `npm run typecheck` + `npm run build` both green.
+
+## 2026-06-30 04:5x CDT — D7: ingress urgency cue
+- Each frame, per track, compute horizontal range to the protected asset (`Math.hypot(p.x, p.z)`,
+  asset at origin). A track is in "ingress" when it is HIGH **and** inside `SITE.noFlyR` (250).
+- On ingress: tail-strobe blink frequency jumps 8→20 Hz and the track's trail opacity rises
+  0.35→0.85, so a HIGH penetration of the no-fly volume reads as urgent in the live command view
+  (R1.4 HIGH unmistakable, R4.3 ingress beat). Deterministic, ~3 ops/track, classifier untouched.
+- Verified: `npm run typecheck` + `npm run build` both green.

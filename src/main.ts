@@ -847,7 +847,13 @@ function animate() {
     l.t += (l.track.speedMps * speedScale * dt) / l.curveLen;
     // D6: rotor cadence by truth — the bird flaps slow/idle (no quad rotors), others spin up.
     for (const r of l.rotors) r.rotation.y += dt * (truth === "bird" ? 9 : 42);
-    l.strobe.emissiveIntensity = Math.sin(clock.elapsedTime * 8 + l.t * 12) > 0.7 ? 3.2 : 0.12;
+    // D7: ingress urgency — a HIGH track that has penetrated the no-fly radius blinks its tail
+    // strobe faster and rides a brighter, more opaque trail so the incursion reads as urgent.
+    const rangeToAsset = Math.hypot(p.x, p.z);
+    const ingress = l.cls.threat === "HIGH" && rangeToAsset < SITE.noFlyR;
+    const strobeHz = ingress ? 20 : 8;
+    l.strobe.emissiveIntensity = Math.sin(clock.elapsedTime * strobeHz + l.t * 12) > 0.7 ? 3.2 : 0.12;
+    (l.trail.material as THREE.LineBasicMaterial).opacity = ingress ? 0.85 : 0.35;
     // D1: altitude drop-line + ground reticle track the drone's x/z each frame
     l.dropPos[0] = p.x; l.dropPos[1] = p.y; l.dropPos[2] = p.z;
     l.dropPos[3] = p.x; l.dropPos[4] = 1.2;  l.dropPos[5] = p.z;

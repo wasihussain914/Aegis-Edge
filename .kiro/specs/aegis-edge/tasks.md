@@ -57,7 +57,7 @@ if stuck. **The loop appends new tasks under "Discovered" as it learns.** Verify
       idle/slow rotors; the friendly (0192, fast) banks wider (lower bank clamp); hostiles stay
       precise and tight. Drives R1.2 "realistic paths" without touching the classifier. Keep build
       green and 60 fps.
-- [ ] D7. Ingress urgency cue: each frame compute a track's horizontal range to the protected
+- [x] D7. Ingress urgency cue: each frame compute a track's horizontal range to the protected
       asset; when a HIGH track crosses inside `SITE.noFlyR`, speed up its tail-strobe blink and
       raise its trail opacity so the penetration reads as urgent in the live demo (R1.4 HIGH
       unmistakable, R4.3 ingress beat). Deterministic + cheap; classifier untouched.
