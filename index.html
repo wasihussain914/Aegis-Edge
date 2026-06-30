@@ -118,6 +118,13 @@
       #coopgate .gate button.appr:hover { border-color: #5dd6a0; color: #b6ffd9; }
       #coopgate .gate button.deny { border-color: #6f3030; color: #ff9aa2; }
       #coopgate .gate button.deny:hover { border-color: #ff6b78; }
+      #pausedBadge { position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
+        display: none; z-index: 50; padding: 6px 14px; border-radius: 7px;
+        font: 700 12px/1 ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: 1.5px;
+        color: #ffe08a; background: rgba(40,28,6,.82); border: 1px solid #ffb454;
+        box-shadow: 0 0 16px rgba(255,180,84,.35); }
+      body.paused #pausedBadge { display: block; animation: pausePulse 1.4s ease-in-out infinite; }
+      @keyframes pausePulse { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
     </style>
   </head>
   <body>
@@ -172,12 +179,14 @@
         <button class="cam" data-view="threat">Threat-axis</button>
         <button class="cam" data-view="sensor">Sensor-eye</button>
         <button id="followBtn" class="cam">▶ Follow hostile</button>
+        <button id="pauseBtn" class="cam">⏸ Pause</button>
         <button id="demoBtn" class="cam">▶ Demo</button>
       </div>
     </div>
     <div id="panel"></div>
+    <div id="pausedBadge">⏸ EVALUATION PAUSED · camera live · Space to resume</div>
     <div id="demoCaption"></div>
-    <div id="hint">drag to orbit · scroll to zoom · click a track for the AI threat-call · views 1-4 · F follow · D demo · R radar-down (DDIL) · 🔊 sound on
+    <div id="hint">drag to orbit · scroll to zoom · click a track for the AI threat-call · views 1-4 · F follow · D demo · R radar-down (DDIL) · Space pause · 🔊 sound on
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

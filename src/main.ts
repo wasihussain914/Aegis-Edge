@@ -558,6 +558,10 @@ let perspective: UnitId = "beachhead";      // whose air picture is highlighted 
 let radarDownBeach = false;                 // DDIL: Beachhead radar knocked offline → blind organically, leans on Link-16
 let lastPaintLink: boolean | null = null;   // repaint units only on link/radar transitions (not every frame)
 let lastPaintRadar: boolean | null = null;
+// Pause the EVALUATION: a dedicated sim-clock (simTime) that freezes on pause while the camera stays
+// live (real dt), so the operator can orbit/zoom a frozen air picture to inspect the moment.
+let paused = false;
+let simTime = 0;
 const engaged = new Set<string>();          // shoot-and-shout: tracks already fired on (persists across ticks)
 // E1/E4: pending human-approval gates — a hostile that needs human approval pauses here; nothing
 // fires until `granted` reaches `needed`. DENY drops it into `deniedGates` so it never auto-re-arms.
@@ -603,7 +607,7 @@ function fireGate(g: PendingGate): void {
   if (dp) spawnTracer(new THREE.Vector3(sp.x, 14, sp.z), dp.clone());
   engaged.add(g.track.id);                                 // shoot-and-shout: other unit stands down
   const other = g.shooter === "beachhead" ? "tank_column" : "beachhead";
-  logEvent(`${labelUnit(g.shooter)} ENGAGES ${g.track.id} with ${g.weapon} — human-approved; ${labelUnit(other)} stands down.`, clock.elapsedTime);
+  logEvent(`${labelUnit(g.shooter)} ENGAGES ${g.track.id} with ${g.weapon} — human-approved; ${labelUnit(other)} stands down.`, simTime);
 }
 
 /** Re-render the pending approval gates (E4): nothing fires until every gate is granted or denied. */
@@ -618,7 +622,7 @@ function renderGates(): void {
       g.granted++; if (g.granted >= g.needed) { fireGate(g); pendingGates.delete(g.track.id); } renderGates(); };
   for (const b of coopGateEl.querySelectorAll<HTMLButtonElement>("button.deny"))
     b.onclick = () => { const id = b.dataset.deny!; pendingGates.delete(id); deniedGates.add(id);
-      logEvent(`${id}: engagement DENIED by operator — held, not fired.`, clock.elapsedTime); renderGates(); };
+      logEvent(`${id}: engagement DENIED by operator — held, not fired.`, simTime); renderGates(); };
 }
 
 /** Switching mode re-decides the approver live (DOD-10): clear stale gates + status so the next tick
@@ -628,7 +632,7 @@ function setMode(m: OperatorMode): void {
   operatorMode = m;
   pendingGates.clear(); deniedGates.clear(); loggedStatus.clear(); renderGates();
   for (const b of modeBtns) b.classList.toggle("active", b.dataset.mode === m);
-  logEvent(`OPERATOR MODE → ${m.toUpperCase()} — approval authority updated.`, clock.elapsedTime);
+  logEvent(`OPERATOR MODE → ${m.toUpperCase()} — approval authority updated.`, simTime);
 }
 function setComms(c: CommsCase): void {
   if (c === commsCase) return;
@@ -636,7 +640,7 @@ function setComms(c: CommsCase): void {
   for (const b of commsBtns) b.classList.toggle("active", b.dataset.comms === c);
   logEvent(c === "intermittent"
     ? "COMMS → CASE 2 (intermittent) — link will drop; expect stale tracks + degraded handoff."
-    : "COMMS → CASE 1 (persistent) — link steady; full fusion.", clock.elapsedTime);
+    : "COMMS → CASE 1 (persistent) — link steady; full fusion.", simTime);
 }
 function setPerspective(u: UnitId): void {
   perspective = u;
@@ -651,7 +655,7 @@ function setRadarDown(down: boolean): void {
   pendingGates.clear(); loggedStatus.clear(); renderGates();  // re-decide engagements under the new sensor picture
   logEvent(down
     ? "DDIL: Marine Beachhead RADAR OFFLINE (jammed/kinetic) — organically BLIND; air picture now via Link-16 only."
-    : "Marine Beachhead RADAR restored — organic coverage back online.", clock.elapsedTime);
+    : "Marine Beachhead RADAR restored — organic coverage back online.", simTime);
   playRadarAlarm(down);
 }
 for (const b of modeBtns) b.onclick = () => setMode(b.dataset.mode as OperatorMode);
@@ -894,7 +898,7 @@ function revealLive(l: Live, sensorId: string): void {
   lab.position.copy(l.label.position);
   scene.add(lab); l.label = lab;
   if (l.ring) l.ring.visible = true;
-  logEvent(`${sensorId} acquires ${l.track.id} on approach — classified ${l.cls.class.toUpperCase()} / ${l.cls.threat}.`, clock.elapsedTime);
+  logEvent(`${sensorId} acquires ${l.track.id} on approach — classified ${l.cls.class.toUpperCase()} / ${l.cls.threat}.`, simTime);
 }
 
 // --- live detection lines: one per (sensor, track); shown only while that sensor sees the track ---
@@ -966,8 +970,8 @@ function coopClassRationale(t: Track): string {
 function selectCoopDrone(d: CoopDroneView): void {
   selected = null; overlay.style.display = "none";   // coop panel has no leader line
   const t = d.track;
-  const colNow = tankColumnAt(clock.elapsedTime, 1);
-  const linkNow = coopLinkUpAt(clock.elapsedTime, commsCase, 1);
+  const colNow = tankColumnAt(simTime, 1);
+  const linkNow = coopLinkUpAt(simTime, commsCase, 1);
   const eng = engagementRationale(t, [MARINE_BEACHHEAD, colNow], linkNow, operatorMode, engaged);
   const fcol = "#" + (FACTION_COLOR[t.faction] & 0xffffff).toString(16).padStart(6, "0");
   panel.innerHTML =
@@ -1153,8 +1157,19 @@ function setFollow(on: boolean): void {
   else goView("oblique");
 }
 followBtn.onclick = () => { stopDemo(); setFollow(!followHostile); };
+const pauseBtn = document.getElementById("pauseBtn") as HTMLButtonElement;
+function setPaused(p: boolean): void {
+  if (p === paused) return;
+  paused = p;
+  pauseBtn.classList.toggle("active", p);
+  pauseBtn.textContent = p ? "▶ Resume" : "⏸ Pause";
+  document.body.classList.toggle("paused", p);
+  logEvent(p ? "EVALUATION PAUSED — air picture frozen (camera still live)." : "EVALUATION RESUMED.", simTime);
+}
+pauseBtn.onclick = () => setPaused(!paused);
 addEventListener("keydown", (e) => {
   const k = e.key.toLowerCase();
+  if (k === " " || e.code === "Space") { e.preventDefault(); setPaused(!paused); return; }
   if (k === "d") { demoActive ? stopDemo() : startDemo(); return; }
   stopDemo();                                        // any manual camera key takes over from the demo
   if (k === "1") goView("oblique");
@@ -1224,10 +1239,12 @@ for (const el of document.querySelectorAll<HTMLElement>("#legend .ct")) {
 }
 function animate() {
   requestAnimationFrame(animate);
-  const dt = clock.getDelta();
+  const dt = clock.getDelta();                 // real frame delta — camera/orbit stay live while paused
+  const simDt = paused ? 0 : dt;               // world delta — freezes the evaluation on pause
+  if (!paused) simTime += dt;
   // D5: breathe living-building windows on their slow per-building phase (two incommensurate sines
   // so brightness dips irregularly — reads as windows flicking on/off — at one material write each).
-  const tw = clock.elapsedTime;
+  const tw = simTime;
   for (const w of livingFacades) {
     const a = Math.sin(tw * w.speed + w.phase) * 0.6 + Math.sin(tw * w.speed * 0.37 + w.phase * 1.7) * 0.4;
     w.mat.emissiveIntensity = WINDOW_BASE * (0.85 + 0.13 * a); // ~0.65–0.88, subtle; never blooms
@@ -1236,7 +1253,7 @@ function animate() {
   // position function (elapsed seconds as the tick); its coverage dome rides with it.
   for (const cu of coopUnits) {
     if (!cu.mobile) continue;
-    const cp = columnPositionAt(clock.elapsedTime, 1);
+    const cp = columnPositionAt(simTime, 1);
     cu.group.position.set(cp.x, 0, cp.z);
   }
   // --- C1/C2: Link-16 state + per-unit air pictures + fusion (deterministic core decides) ---
@@ -1247,11 +1264,11 @@ function animate() {
   // jamming) it goes fully dark and self-protects. The deterministic core decides all of this from the
   // zeroed ranges; nothing here is faked.
   const beachUnit: Unit = radarDownBeach ? { ...MARINE_BEACHHEAD, radarRangeM: 0, eoirRangeM: 0 } : MARINE_BEACHHEAD;
-  const colUnit = tankColumnAt(clock.elapsedTime, 1);
+  const colUnit = tankColumnAt(simTime, 1);
   const coopUnitObjs: [Unit, Unit] = [beachUnit, colUnit];
-  const link = coopLinkUpAt(clock.elapsedTime, commsCase, 1);
-  if (link) lastLinkUpSec = clock.elapsedTime;
-  const health = commsHealth(link, clock.elapsedTime, lastLinkUpSec); // DOD-12 LIVE/DELAYED/FAILED
+  const link = coopLinkUpAt(simTime, commsCase, 1);
+  if (link) lastLinkUpSec = simTime;
+  const health = commsHealth(link, simTime, lastLinkUpSec); // DOD-12 LIVE/DELAYED/FAILED
   // Convoy/base coloring: the Tank Column is amber and the Beachhead blue UNTIL Link-16 fuses them,
   // then the convoy matches the base (shared blue) — the at-a-glance "we are one picture now" cue. A
   // downed Beachhead radar overrides to red. Repaint only on a transition (cheap; not every frame).
@@ -1271,15 +1288,15 @@ function animate() {
   }
   // idle life for the coop drones: spin rotors + a gentle altitude bob (deterministic per-track phase)
   for (const d of coopDrones) {
-    for (const r of d.rotors) r.rotation.y += dt * 30;
+    for (const r of d.rotors) r.rotation.y += simDt * 30;
     if (d.dead) { d.group.visible = false; d.label.visible = false; continue; }
     if (d.inbound) {        // hostiles fly in from far toward their engagement (home) position
-      const np = hostileInboundAt(d.track.id, d.home, clock.elapsedTime, 1);
+      const np = hostileInboundAt(d.track.id, d.home, simTime, 1);
       d.track.pos.x = np.x; d.track.pos.z = np.z;
       d.group.position.x = np.x; d.group.position.z = np.z;
       d.label.position.set(np.x, COOP_DRONE_ALT + 16, np.z);
     }
-    d.group.position.y = COOP_DRONE_ALT + Math.sin(clock.elapsedTime * 1.3 + d.phase) * 3;
+    d.group.position.y = COOP_DRONE_ALT + Math.sin(simTime * 1.3 + d.phase) * 3;
   }
   // Link-16 line between the two units; color/opacity reflect link state; status text in the HUD.
   {
@@ -1288,7 +1305,7 @@ function animate() {
     linkPos[3] = b.x; linkPos[4] = 14; linkPos[5] = b.z;
     (linkLine.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
     const lm = linkLine.material as THREE.LineBasicMaterial;
-    if (link) { lm.color.setHex(LINK_UP_COLOR); lm.opacity = 0.55 + 0.25 * ((Math.sin(clock.elapsedTime * 4) + 1) / 2); }
+    if (link) { lm.color.setHex(LINK_UP_COLOR); lm.opacity = 0.55 + 0.25 * ((Math.sin(simTime * 4) + 1) / 2); }
     else { lm.color.setHex(LINK_DOWN_COLOR); lm.opacity = 0.18; }
     const gap = Math.round(Math.hypot(a.x - b.x, a.z - b.z));
     const inRange = gap <= 600;
@@ -1323,8 +1340,8 @@ function animate() {
     const perspDim = unitObj.id === perspective ? 1 : 0.4;   // E3: dim the non-selected perspective
     let target = 0;
     if (holds) target = (fused ? 0.5 : 0.28) * perspDim;
-    else if (stale) target = (0.32 + 0.16 * Math.sin(clock.elapsedTime * 6)) * perspDim; // blink = aging
-    pl.op += (target - pl.op) * Math.min(1, dt * 5);
+    else if (stale) target = (0.32 + 0.16 * Math.sin(simTime * 6)) * perspDim; // blink = aging
+    pl.op += (target - pl.op) * Math.min(1, simDt * 5);
     if (pl.op < 0.01 && !holds && !stale) pl.op = 0;
     pl.line.visible = pl.op > 0.01;
     if (pl.line.visible) {
@@ -1356,13 +1373,13 @@ function animate() {
   // --- Phase D/E engagement step (DOD-6/7/8/9/10/12/14): core resolves; we log + render + gate it ---
   // 1) link + handoff transitions → one plain-English callout each (DOD-4 link, DOD-12 degradation)
   if (link !== linkWasUp) {
-    logEvent(link ? "LINK-16 ESTABLISHED — air pictures fused." : "LINK-16 dropped.", clock.elapsedTime);
+    logEvent(link ? "LINK-16 ESTABLISHED — air pictures fused." : "LINK-16 dropped.", simTime);
     if (link) playLink(); else playLinkLost();
   }
   if (health.handoff !== prevHandoff) {
-    if (health.handoff === "DELAYED") logEvent("CASE 2: comms outage — cross-unit handoff DELAYED, shared tracks aging.", clock.elapsedTime);
-    else if (health.handoff === "FAILED") logEvent("CASE 2: handoff FAILED — fallback to SELF-PROTECT (organic sensors only).", clock.elapsedTime);
-    else if (prevHandoff !== "LIVE") logEvent("CASE 2: link restored — pictures re-fused.", clock.elapsedTime);
+    if (health.handoff === "DELAYED") logEvent("CASE 2: comms outage — cross-unit handoff DELAYED, shared tracks aging.", simTime);
+    else if (health.handoff === "FAILED") logEvent("CASE 2: handoff FAILED — fallback to SELF-PROTECT (organic sensors only).", simTime);
+    else if (prevHandoff !== "LIVE") logEvent("CASE 2: link restored — pictures re-fused.", simTime);
     prevHandoff = health.handoff;
   }
   // 2) new hostile detections per unit (entering a unit's picture) → one log line each
@@ -1370,7 +1387,7 @@ function animate() {
     const pic = ui === 0 ? bPic : cPic;
     for (const t of COOP_TRACKS) {
       if (t.faction === "hostile" && pic.has(t.id) && !seenByUnit[ui].has(t.id))
-        logEvent(`${labelUnit(coopUnitObjs[ui].id)} detects ${t.id}.`, clock.elapsedTime);
+        logEvent(`${labelUnit(coopUnitObjs[ui].id)} detects ${t.id}.`, simTime);
     }
     seenByUnit[ui] = new Set(pic);
   }
@@ -1381,7 +1398,7 @@ function animate() {
   for (const o of plan.outcomes) {
     const prev = loggedStatus.get(o.track.id);
     if (o.status !== "NONE" && o.status !== prev) {
-      logEvent(o.logLine, clock.elapsedTime);
+      logEvent(o.logLine, simTime);
       if (o.fired) {                                   // Autonomous machine-authorized fire (no human)
         const sIdx = o.decision.shooter === coopUnitObjs[0].id ? 0 : 1;
         const sp = coopUnits[sIdx].group.position;
@@ -1417,22 +1434,22 @@ function animate() {
       const bm = d.body.material as THREE.MeshStandardMaterial;
       bm.color.setHex(FACTION_COLOR.hostile); bm.emissive.setHex(FACTION_COLOR.hostile);
       reLabel(d, `${d.track.id} · HOSTILE`, FACTION_COLOR.hostile);
-      logEvent(`${labelUnit(det.id)} acquires ${d.track.id} on approach — classified HOSTILE (drone).`, clock.elapsedTime);
+      logEvent(`${labelUnit(det.id)} acquires ${d.track.id} on approach — classified HOSTILE (drone).`, simTime);
     }
     // destroy on engagement (human-approved OR autonomous machine fire — both land in `engaged`)
     if (engaged.has(d.track.id) && !d.dead) {
       d.dead = true;
-      logEvent(`${d.track.id} DESTROYED — effector hit confirmed; track removed.`, clock.elapsedTime);
+      logEvent(`${d.track.id} DESTROYED — effector hit confirmed; track removed.`, simTime);
       playAttack();
     }
     const ringMat = d.ring.material as THREE.MeshBasicMaterial;
-    const target = engaged.has(d.track.id) && !d.dead ? 0.45 + 0.3 * ((Math.sin(clock.elapsedTime * 5) + 1) / 2) : 0;
-    ringMat.opacity += (target - ringMat.opacity) * Math.min(1, dt * 4);
+    const target = engaged.has(d.track.id) && !d.dead ? 0.45 + 0.3 * ((Math.sin(simTime * 5) + 1) / 2) : 0;
+    ringMat.opacity += (target - ringMat.opacity) * Math.min(1, simDt * 4);
     d.ring.position.set(d.group.position.x, 2, d.group.position.z);
   }
   for (let i = tracers.length - 1; i >= 0; i--) {
     const tr = tracers[i];
-    tr.ttl -= dt * 1.4;
+    tr.ttl -= simDt * 1.4;
     if (tr.ttl <= 0) { scene.remove(tr.line); tracers.splice(i, 1); continue; }
     (tr.line.material as THREE.LineBasicMaterial).opacity = Math.max(0, tr.ttl);
   }
@@ -1445,7 +1462,7 @@ function animate() {
     const ahead = l.curve.getPointAt((u + 0.012) % 1);
     // Building avoidance: climb to clear any rooftop we're overflying, then ease back down.
     const need = Math.max(0, clearanceFloor(p.x, p.z) - p.y);
-    l.climb += (need - l.climb) * Math.min(1, dt * 1.5);               // smooth climb/descend
+    l.climb += (need - l.climb) * Math.min(1, simDt * 1.5);               // smooth climb/descend
     p.y += l.climb; ahead.y += l.climb;
     // D6: per-truth flight character — make the truth label read in motion without touching the
     // classifier. The bird (0205) wanders: a deterministic lateral weave (perpendicular to heading)
@@ -1468,14 +1485,14 @@ function animate() {
     const turn = l.prevDir.x * dir.z - l.prevDir.z * dir.x;             // signed (cross-y)
     const bankClamp = truth === "friendly" ? 0.3 : truth === "bird" ? 0.18 : 0.6;
     const targetBank = THREE.MathUtils.clamp(turn * 40, -bankClamp, bankClamp);
-    l.bank += (targetBank - l.bank) * Math.min(1, dt * 4);
+    l.bank += (targetBank - l.bank) * Math.min(1, simDt * 4);
     l.frame.rotation.z = l.bank;
     l.prevDir.copy(dir);
     // Speed easing: ease off the throttle through sharp turns, full speed on straights.
     const speedScale = 1 - Math.min(0.55, Math.abs(turn) * 9);
-    l.t += (l.track.speedMps * speedScale * dt) / l.curveLen;
+    l.t += (l.track.speedMps * speedScale * simDt) / l.curveLen;
     // D6: rotor cadence by truth — the bird flaps slow/idle (no quad rotors), others spin up.
-    for (const r of l.rotors) r.rotation.y += dt * (truth === "bird" ? 9 : 42);
+    for (const r of l.rotors) r.rotation.y += simDt * (truth === "bird" ? 9 : 42);
     // D7: ingress urgency — a HIGH track that has penetrated the no-fly radius blinks its tail
     // strobe faster and rides a brighter, more opaque trail so the incursion reads as urgent.
     const rangeToAsset = Math.hypot(p.x, p.z);
@@ -1485,7 +1502,7 @@ function animate() {
     // (fusedMods is recomputed in the detection loop below, so this uses last frame's state — fine.)
     const fused = l.fusedMods.size >= 2;
     const strobeHz = ingress ? 20 : 8;
-    const strobeOn = Math.sin(clock.elapsedTime * strobeHz + l.t * 12) > 0.7;
+    const strobeOn = Math.sin(simTime * strobeHz + l.t * 12) > 0.7;
     l.strobe.emissiveIntensity = strobeOn ? 3.2 : fused ? 0.6 : 0.12;
     (l.trail.material as THREE.LineBasicMaterial).opacity = ingress ? 0.85 : fused ? 0.55 : 0.35;
     // D1: altitude drop-line + ground reticle track the drone's x/z each frame
@@ -1511,13 +1528,13 @@ function animate() {
     // D12: gently scale-pulse the selected track's label so the chosen track is obvious; others rest
     const bs = l.label.userData.baseScale as THREE.Vector3;
     if (l === selected) {
-      const k = 1 + 0.13 * ((Math.sin(clock.elapsedTime * 3) + 1) / 2);
+      const k = 1 + 0.13 * ((Math.sin(simTime * 3) + 1) / 2);
       l.label.scale.set(bs.x * k, bs.y * k, 1);
     } else if (l.label.scale.x !== bs.x) {
       l.label.scale.copy(bs);                            // restore on deselect
     }
     if (l.ring) {
-      const pulse = (Math.sin(clock.elapsedTime * 4) + 1) / 2;
+      const pulse = (Math.sin(simTime * 4) + 1) / 2;
       l.ring.position.set(p.x, 2, p.z);
       l.ring.scale.setScalar(1 + pulse * 0.7);
       (l.ring.material as THREE.MeshBasicMaterial).opacity = 0.2 + pulse * 0.5;
@@ -1532,9 +1549,9 @@ function animate() {
   } else selRing.visible = false;
   // advance each sensor's scan (radar spins 360°; rf/eoir oscillate over their sweepSpan)
   for (const s of liveSensors) {
-    if (s.spin) s.bearing = (s.bearing + dt * s.spin) % (Math.PI * 2);
+    if (s.spin) s.bearing = (s.bearing + simDt * s.spin) % (Math.PI * 2);
     else {
-      s.bearing += s.sweepDir * dt * 0.5;
+      s.bearing += s.sweepDir * simDt * 0.5;
       if (s.bearing > s.sweepSpan) { s.bearing = s.sweepSpan; s.sweepDir = -1; }
       else if (s.bearing < -s.sweepSpan) { s.bearing = -s.sweepSpan; s.sweepDir = 1; }
     }
@@ -1557,7 +1574,7 @@ function animate() {
     }
     // D10: ease opacity toward target so an "acquiring" sweep fades in/out smoothly rather than flickering.
     const target = seen ? DET_OP_MAX : 0;
-    d.op += (target - d.op) * Math.min(1, dt * 6);
+    d.op += (target - d.op) * Math.min(1, simDt * 6);
     if (d.op < 0.01 && !seen) d.op = 0;
     d.line.visible = d.op > 0.01;
     if (d.line.visible) {
@@ -1615,7 +1632,7 @@ function animate() {
   const tally: Record<string, number> = { HIGH: 0, MED: 0, LOW: 0, NONE: 0 };
   for (const l of live) if (l.detected) tally[l.cls.threat] = (tally[l.cls.threat] ?? 0) + 1;
   for (const [lvl, el] of legendCounts) el.textContent = String(tally[lvl] ?? 0);
-  clockEl.textContent = `T+${clock.elapsedTime.toFixed(1)}s · ${live.length} tracks · ${tally.HIGH} HIGH · ${fusedCount} FUSED`;
+  clockEl.textContent = `T+${simTime.toFixed(1)}s · ${live.length} tracks · ${tally.HIGH} HIGH · ${fusedCount} FUSED`;
   composer.render();
 }
 animate();
