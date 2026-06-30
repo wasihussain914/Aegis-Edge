@@ -170,6 +170,22 @@ if stuck. **The loop appends new tasks under "Discovered" as it learns.** Verify
       and that flipping `friendlyTransponder` true on 0427 suppresses it to NONE. Locks the exact threat
       boundary so a future realism pass that rewires feature plumbing can't silently move the answer-key
       line (R2.4, R3.1). Tests only; classifier untouched; keep build + typecheck green.
+- [ ] D34. Dusk ground haze: a single large faint additive radial-gradient disc (reuse a soft sprite/canvas
+      texture, depthWrite off) laid flat just above the terrain so the new D3 street/perimeter lights and
+      the nav-light bloom have low atmosphere to glow into, deepening the dusk read without per-frame cost
+      (R1.1, R1.6). Warm-to-transparent, centered on the asset; keep it under the bloom threshold so it
+      doesn't wash markers. Static geometry; classifier untouched; keep build + typecheck green and 60 fps.
+- [ ] D35. Disconnected-ops + reconcile cue (R3.2 reconcile-on-reconnect, "works disconnected" claim): a HUD
+      "LINK: ONLINE/DEGRADED" toggle (button + key). While DEGRADED, `fetchNarration` is forced to the
+      offline template and every track narrated offline is queued; the HUD shows "N explanations pending
+      reconcile". Toggling back to ONLINE drains the queue (clears the chip; optionally re-narrates the open
+      track) to demo the edge-then-reconcile architecture. Pure client; classifier untouched; build green.
+- [ ] D36. EO/IR track spotlight: when the EO-1 sensor currently sees a track (reuse T4's per-frame
+      detection), cast a faint warm SpotLight (or a cheap soft cone sprite) from the sensor onto that
+      track's drone, panning with the gimbal — so the "camera is locked on" reads in the scene and ties the
+      sensor↔track association to a visible cue beyond the detection line (R1.3, R1.4). One reused light;
+      target the live track position each frame; cap intensity so bloom stays controlled. 60 fps; classifier
+      untouched; keep build + typecheck green.
 
 ## Done when
 Waves 1-3 + Discovered checked or blocked; `npm run typecheck` + `npm run build` green; the
