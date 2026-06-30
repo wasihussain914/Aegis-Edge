@@ -78,25 +78,31 @@ export const ARMY_TANK_COLUMN: Unit = tankColumnAt(0);
  */
 export const COOP_TRACKS: Track[] = [
   { id: "HOSTILE-1", pos: { x: -140, z: 300 }, faction: "hostile", threat: "HIGH" },
-  { id: "HOSTILE-2", pos: { x: 820, z: 420 }, faction: "hostile", threat: "HIGH" }, // penetrator — starts FAR, flies in
+  { id: "HOSTILE-2", pos: { x: 240, z: 140 }, faction: "hostile", threat: "HIGH" },   // engagement/arrival pos
   { id: "FRIEND-1", pos: { x: 120, z: -260 }, faction: "friendly", threat: "NONE" },
   { id: "NEUTRAL-1", pos: { x: 900, z: 120 }, faction: "neutral", threat: "NONE" },
 ];
 
 /**
- * The demo penetrator (HOSTILE-2): starts far out and flies straight toward the protected asset,
- * halting at 25 m. Deterministic by tick. The 3D layer advances its track position with this each
- * frame, so the units DETECT it on approach (out-of-range → in-range), CLASSIFY it HOSTILE, and
- * DESTROY it once engaged — the full "detect → classify → defeat" arc.
+ * Both hostiles fly IN from a far start toward their engagement position (their COOP_TRACKS pos),
+ * at a fixed speed, then hold. Deterministic by tick. The 3D layer advances each hostile's position
+ * with this each frame, so the units DETECT them on approach (out-of-range → in-range), CLASSIFY
+ * them HOSTILE, and DESTROY them once engaged (human-approved). The COOP_TRACKS positions are the
+ * *arrival* positions the deterministic-core tests assert against — unchanged, so tests stay green.
  */
-export const PENETRATOR_ID = "HOSTILE-2";
-const PEN_START = { x: 820, z: 420 };
-const PEN_SPEED_MPS = 24;
-export function penetratorPositionAt(tick: number, dtSec = 1): { x: number; z: number } {
-  const len = Math.hypot(PEN_START.x, PEN_START.z);
-  const travel = Math.min(len - 25, Math.max(0, tick) * PEN_SPEED_MPS * dtSec);
-  const f = len > 0 ? travel / len : 0;
-  return { x: PEN_START.x * (1 - f), z: PEN_START.z * (1 - f) };
+export const HOSTILE_START: Record<string, { x: number; z: number }> = {
+  "HOSTILE-1": { x: -780, z: 660 },   // inbound from the NW
+  "HOSTILE-2": { x: 900, z: 470 },    // inbound from the NE
+};
+const INBOUND_SPEED_MPS = 32;
+export function hostileInboundAt(id: string, target: { x: number; z: number }, tick: number, dtSec = 1): { x: number; z: number } {
+  const start = HOSTILE_START[id];
+  if (!start) return target;
+  const dx = target.x - start.x, dz = target.z - start.z;
+  const len = Math.hypot(dx, dz);
+  const travel = Math.min(len, Math.max(0, tick) * INBOUND_SPEED_MPS * dtSec);
+  const f = len > 0 ? travel / len : 1;
+  return { x: start.x + dx * f, z: start.z + dz * f };
 }
 
 /**

@@ -16,7 +16,7 @@ import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { buildings, sensors, tracks, SITE, type DroneTrack, type SensorSite } from "./data/scenario.js";
 import { classify, explainTemplate, type Classification } from "./model/threatCall.js";
 import { fetchNarration } from "./narrate.js";
-import { MARINE_BEACHHEAD, tankColumnAt, columnPositionAt, COOP_TRACKS, coopLinkUpAt, PENETRATOR_ID, penetratorPositionAt } from "./data/coopScenario.js";
+import { MARINE_BEACHHEAD, tankColumnAt, columnPositionAt, COOP_TRACKS, coopLinkUpAt, HOSTILE_START, hostileInboundAt } from "./data/coopScenario.js";
 import { unitCoverages } from "./coop/coverage.js";
 import { unitSees, airPicture, labelUnit, labelWeapon, approvalGate, commsHealth } from "./coop/coordination.js";
 import { planEngagements, engagementRationale } from "./coop/engagement.js";
@@ -460,17 +460,21 @@ interface CoopDroneView {
   track: Track; group: THREE.Group; body: THREE.Mesh; rotors: THREE.Object3D[]; phase: number;
   ring: THREE.Mesh;       // D2: "ENGAGED" ground ring, lit once a hostile is fired on
   label: THREE.Sprite; detected: boolean; dead: boolean;  // detect→classify→destroy arc
+  inbound: boolean; home: { x: number; z: number };       // hostiles fly IN from far to `home`
 }
 const coopDrones: CoopDroneView[] = [];
 for (const t of COOP_TRACKS) {
-  // The penetrator starts UNCLASSIFIED (grey/UNKNOWN) and is classified HOSTILE on detection.
-  const pen = t.id === PENETRATOR_ID;
-  const color = pen ? UNKNOWN_COLOR : FACTION_COLOR[t.faction];
+  // Both hostiles are INBOUND: they start far/UNCLASSIFIED (grey/UNKNOWN) and are classified HOSTILE
+  // on detection as they close. Non-hostiles are shown classified from the start.
+  const inbound = t.faction === "hostile" && t.id in HOSTILE_START;
+  const home = { x: t.pos.x, z: t.pos.z };
+  const start = inbound ? HOSTILE_START[t.id] : home;
+  const color = inbound ? UNKNOWN_COLOR : FACTION_COLOR[t.faction];
   const parts = makeDrone(color);
-  parts.group.position.set(t.pos.x, COOP_DRONE_ALT, t.pos.z);
+  parts.group.position.set(start.x, COOP_DRONE_ALT, start.z);
   scene.add(parts.group);
-  const label = makeLabel(`${t.id} · ${pen ? "UNKNOWN" : FACTION_LABEL[t.faction]}`, color);
-  label.position.set(t.pos.x, COOP_DRONE_ALT + 16, t.pos.z); scene.add(label);
+  const label = makeLabel(`${t.id} · ${inbound ? "UNKNOWN" : FACTION_LABEL[t.faction]}`, color);
+  label.position.set(start.x, COOP_DRONE_ALT + 16, start.z); scene.add(label);
   // D2: a flat ground ring under each hostile that lights when it has been engaged (shoot-and-shout)
   const ring = new THREE.Mesh(
     new THREE.RingGeometry(10, 13, 40),
@@ -478,7 +482,7 @@ for (const t of COOP_TRACKS) {
   );
   ring.rotation.x = -Math.PI / 2; ring.frustumCulled = false; scene.add(ring);
   const phase = ([...t.id].reduce((a, c) => a + c.charCodeAt(0), 0) % 360) * (Math.PI / 180);
-  coopDrones.push({ track: t, group: parts.group, body: parts.body, rotors: parts.rotors, phase, ring, label, detected: !pen, dead: false });
+  coopDrones.push({ track: t, group: parts.group, body: parts.body, rotors: parts.rotors, phase, ring, label, detected: !inbound, dead: false, inbound, home });
 }
 
 /** Swap a coop drone's floating label (text + color) — used when a track is classified. */
@@ -529,7 +533,7 @@ const lastLinkPic: [Set<string>, Set<string>] = [new Set(), new Set()];
 // MODE / COMMS / VIEW-AS control set. Defaults: Autonomous + Case 1 + Beachhead perspective, so a
 // missile clears and the cooperative engagement plays out; switching to Manual/Combined pauses every
 // fire on a human gate (DOD-9/10/14), and Case 2 degrades the link (DOD-12).
-let operatorMode: OperatorMode = "autonomous";
+let operatorMode: OperatorMode = "manual"; // default: human approves every kill (toggle to Autonomous for machine-speed)
 let commsCase: CommsCase = "persistent";    // Case 1 (persistent) ↔ Case 2 (intermittent) — E2/DOD-12
 let perspective: UnitId = "beachhead";      // whose air picture is highlighted — E3/DOD-13
 const engaged = new Set<string>();          // shoot-and-shout: tracks already fired on (persists across ticks)
@@ -1049,19 +1053,22 @@ addEventListener("keydown", (e) => {
 // banner through the mission story: coverage → classify the four tracks → the hostile ingress →
 // the human-gated DEFEAT. Deterministic and repeatable for the live demo; any manual gesture
 // (cam button, key, or grabbing the canvas to orbit) hands control back to the operator at once.
-interface Beat { at: number; caption: string; view?: ViewName; follow?: boolean; select?: string; }
+interface Beat { at: number; caption: string; view?: ViewName; follow?: boolean; select?: string; persp?: UnitId; mode?: OperatorMode; coopSelect?: string; }
 const DEMO_SCRIPT: Beat[] = [
   { at: 0,  view: "oblique", caption: "AEGIS-EDGE · Joint Base Cascade — North Gate. Dusk. Edge sensors online." },
   { at: 5,  view: "top",     caption: "RADAR, RF and EO/IR coverage sweeping the 1 km² no-fly volume." },
-  { at: 10, view: "oblique", caption: "Four tracks inbound. The edge classifier scores each one — deterministic, LLM-free." },
+  { at: 10, view: "oblique", caption: "Tracks inbound. The edge classifier scores each one — deterministic, LLM-free." },
   { at: 15, select: "0192",  caption: "Track 0192 — fast, high, squawking a friendly transponder → NONE. Not promoted." },
   { at: 21, select: "0205",  caption: "Track 0205 — slow, tiny RCS, no C2 emitter → bird. Correctly held off the threat list." },
   { at: 27, select: "0427", view: "threat", caption: "Track 0427 — quad thermal + commercial-UAS C2, inside the no-fly → HIGH." },
-  { at: 34, follow: true,    caption: "Threat-axis chase. The hostile is penetrating the protected-asset core." },
-  { at: 40, select: "0427",  caption: "Recommend DEFEAT — held behind a 2-person human gate. The LLM stays off the kill-chain." },
-  { at: 47, view: "oblique", caption: "Explainable, human-governed counter-UAS — decided at the edge." },
+  // --- cooperative two-unit arc ---
+  { at: 33, view: "oblique", persp: "beachhead", caption: "Joint picture: a Marine Beachhead and an Army Tank Column. The Column closes in and Link-16 fuses their radars." },
+  { at: 39, view: "top",     caption: "The Beachhead's radar is broad; the Column's is limited — it leans on the shared track. One air picture, two sensors." },
+  { at: 45, view: "oblique", coopSelect: "HOSTILE-2", caption: "Two contacts run in from the flanks — UNKNOWN until a sensor acquires them, then classified HOSTILE." },
+  { at: 51, mode: "manual",  coopSelect: "HOSTILE-2", caption: "Manual mode: every kill waits on a human. ROE picks the cheapest in-range effector; the LLM stays off the kill-chain." },
+  { at: 57, view: "oblique", caption: "Operator approves the defeat — shoot-and-shout stands the partner down. Explainable, human-governed C-UAS at the edge." },
 ];
-const DEMO_END = 53;                                 // hold the closing caption, then reset
+const DEMO_END = 64;                                 // hold the closing caption, then reset
 let demoActive = false, demoClock = 0, demoIdx = 0;
 const demoBtn = document.getElementById("demoBtn") as HTMLButtonElement;
 const captionEl = document.getElementById("demoCaption")!;
@@ -1069,7 +1076,10 @@ const captionEl = document.getElementById("demoCaption")!;
 function fireBeat(b: Beat): void {
   if (b.view) goView(b.view);
   if (b.follow !== undefined) setFollow(b.follow);
+  if (b.persp) setPerspective(b.persp);
+  if (b.mode) setMode(b.mode);
   if (b.select) { const l = live.find((x) => x.track.id === b.select); if (l) selectTrack(l); }
+  if (b.coopSelect) { const d = coopDrones.find((x) => x.track.id === b.coopSelect); if (d) selectCoopDrone(d); }
   captionEl.textContent = b.caption;
   captionEl.classList.add("show");
 }
@@ -1125,8 +1135,8 @@ function animate() {
   for (const d of coopDrones) {
     for (const r of d.rotors) r.rotation.y += dt * 30;
     if (d.dead) { d.group.visible = false; d.label.visible = false; continue; }
-    if (d.track.id === PENETRATOR_ID) {        // penetrator flies in from far toward the asset
-      const np = penetratorPositionAt(clock.elapsedTime, 1);
+    if (d.inbound) {        // hostiles fly in from far toward their engagement (home) position
+      const np = hostileInboundAt(d.track.id, d.home, clock.elapsedTime, 1);
       d.track.pos.x = np.x; d.track.pos.z = np.z;
       d.group.position.x = np.x; d.group.position.z = np.z;
       d.label.position.set(np.x, COOP_DRONE_ALT + 16, np.z);

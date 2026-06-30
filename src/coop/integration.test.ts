@@ -9,7 +9,6 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   MARINE_BEACHHEAD, tankColumnAt, columnPositionAt, COOP_TRACKS, coopLinkUpAt, LINK_RANGE_M,
-  penetratorPositionAt,
 } from "../data/coopScenario.js";
 import {
   unitSees, airPicture, selectShooter, resolveEngagement, approvalGate, commsHealth,
@@ -24,9 +23,8 @@ const T_STANDOFF = 80; // by t=80 the Column has closed to its standoff (x=200) 
 const beach = MARINE_BEACHHEAD;
 const colStandoff = tankColumnAt(T_STANDOFF);
 const H1 = COOP_TRACKS.find((t) => t.id === "HOSTILE-1")!;
-// HOSTILE-2 is the penetrator: it starts far and flies in. By T_STANDOFF it has closed to the
-// asset, so test it at its flown-in position (the 3D layer advances it the same way each tick).
-const H2 = { ...COOP_TRACKS.find((t) => t.id === "HOSTILE-2")!, pos: penetratorPositionAt(T_STANDOFF) };
+// COOP_TRACKS positions are the hostiles' ARRIVAL positions — the 3D layer flies them in to these.
+const H2 = COOP_TRACKS.find((t) => t.id === "HOSTILE-2")!;
 
 test("DOD-1: both units exist; the Column closes on the Beachhead then clamps at standoff", () => {
   assert.equal(beach.id, "beachhead");

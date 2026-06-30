@@ -1,19 +1,17 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { planEngagements, engagementRationale, statusOf } from "./engagement.js";
-import { MARINE_BEACHHEAD, tankColumnAt, COOP_TRACKS, coopLinkUpAt, penetratorPositionAt } from "../data/coopScenario.js";
+import { MARINE_BEACHHEAD, tankColumnAt, COOP_TRACKS, coopLinkUpAt } from "../data/coopScenario.js";
 import type { Unit } from "./types.js";
 
 // At a late tick the Column has closed to standoff (x=200) and Link-16 is up (gap 200 ≤ 600m).
+// COOP_TRACKS positions are the hostiles' ARRIVAL positions (the 3D layer flies them in to these).
 const TICK = 100;
 const beach = MARINE_BEACHHEAD;
 const column = tankColumnAt(TICK);
 const units: [Unit, Unit] = [beach, column];
 const link = coopLinkUpAt(TICK, "persistent");
 const hostiles = COOP_TRACKS.filter((t) => t.faction === "hostile");
-// HOSTILE-2 is the penetrator: it starts far and flies in. At TICK it has closed to the asset, so
-// the close-range engagement (RF Zapper cheapest) is testable on its flown-in position.
-const TRACKS_AT_TICK = COOP_TRACKS.map((t) => (t.id === "HOSTILE-2" ? { ...t, pos: penetratorPositionAt(TICK) } : t));
 
 test("setup: link is up at standoff and there are exactly two red hostiles", () => {
   assert.equal(link, true);
@@ -46,14 +44,14 @@ test("DOD-8: shoot-and-shout persists — an engaged track is not re-selected ne
 });
 
 test("DOD-9: the cheapest weapon on a closer hostile is the RF Zapper — holds for a human in autonomous, gates in manual", () => {
-  const auto = planEngagements(TRACKS_AT_TICK, units, link, "autonomous", new Set());
+  const auto = planEngagements(COOP_TRACKS, units, link, "autonomous", new Set());
   const h2a = auto.outcomes.find((o) => o.track.id === "HOSTILE-2")!;
   assert.equal(h2a.decision.weapon, "rf_zapper"); // cheapest in-range across both units
   assert.equal(h2a.fired, false);
   assert.equal(h2a.status, "HOLD");               // RF needs a human; autonomous has none
   assert.ok(h2a.decision.blockedReason);
 
-  const man = planEngagements(TRACKS_AT_TICK, units, link, "manual", new Set());
+  const man = planEngagements(COOP_TRACKS, units, link, "manual", new Set());
   const h2m = man.outcomes.find((o) => o.track.id === "HOSTILE-2")!;
   assert.equal(h2m.status, "GATE");               // manual HAS a human → pauses on the gate, doesn't fire
   assert.equal(h2m.fired, false);
@@ -72,7 +70,7 @@ test("DOD-11: engagementRationale — non-hostile holds fire; hostile names who-
   const fr = engagementRationale(friend, units, link, "autonomous", new Set());
   assert.match(fr, /FRIENDLY/);
   assert.match(fr, /hold fire/);
-  const h2 = TRACKS_AT_TICK.find((t) => t.id === "HOSTILE-2")!;
+  const h2 = COOP_TRACKS.find((t) => t.id === "HOSTILE-2")!;
   const hr = engagementRationale(h2, units, link, "manual", new Set());
   assert.match(hr, /RF Drone Zapper|human/);
 });
