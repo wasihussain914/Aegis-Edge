@@ -634,6 +634,7 @@ interface Live {
   dropLine: THREE.Line; dropPos: Float32Array; reticle: THREE.Mesh;  // D1: altitude depth cue
   decision?: GateDecision;            // T7: latched human-gate outcome for this track
   fusedMods: Set<string>;             // D8: distinct sensor modalities holding this track this frame
+  detected: boolean;                  // false until a sensor first acquires it → then revealed/classified
 }
 
 // --- T7 governance: recommend-only DEFEAT requires a 2-person human gate (R3.1) ---
@@ -740,7 +741,9 @@ function makeLabel(text: string, color: number): THREE.Sprite {
 
 for (const t of tracks()) {
   const cls = classify(t.features);
-  const color = THREAT_COLOR[cls.threat];
+  // Tracks come in UNCLASSIFIED (grey/UNKNOWN). The sensors must actually acquire one before its
+  // real class/threat is revealed — so a far hostile is just an unknown blip until it flies into range.
+  const color = UNKNOWN_COLOR;
   const parts = makeDrone(color);
   scene.add(parts.group);
   // One curve per drone, built once (was rebuilt every frame). Arc-length lookups below
@@ -751,8 +754,8 @@ for (const t of tracks()) {
   const trailGeo = new THREE.BufferGeometry().setFromPoints(curve.getSpacedPoints(80));
   const trail = new THREE.Line(trailGeo, new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.35 }));
   scene.add(trail);
-  // per-track floating label + (for HIGH tracks) a pulsing ground ring
-  const label = makeLabel(`${t.id} · ${cls.class.toUpperCase()} · ${cls.threat}`, color);
+  // per-track floating label starts UNKNOWN; (for HIGH tracks) a pulsing ground ring, hidden until acquired
+  const label = makeLabel(`${t.id} · UNKNOWN`, color);
   scene.add(label);
   let ring: THREE.Mesh | undefined;
   if (cls.threat === "HIGH") {
@@ -760,7 +763,7 @@ for (const t of tracks()) {
       new THREE.RingGeometry(9, 13, 48),
       new THREE.MeshBasicMaterial({ color: THREAT_COLOR.HIGH, transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false })
     );
-    ring.rotation.x = -Math.PI / 2; ring.position.y = 2; scene.add(ring);
+    ring.rotation.x = -Math.PI / 2; ring.position.y = 2; ring.visible = false; scene.add(ring);
   }
   // D1: altitude depth cue — a faint threat-colored vertical line from the drone straight down to a
   // small ground reticle, so altitude/range reads instantly in the oblique command view. Endpoints
@@ -778,7 +781,31 @@ for (const t of tracks()) {
   // D6: deterministic per-track phase (seeded from the id digits) so the bird's wander and the
   // idle-rotor cadence are identical every run rather than random.
   const phase = ([...t.id].reduce((a, c) => a + c.charCodeAt(0), 0) % 360) * (Math.PI / 180);
-  live.push({ track: t, ...parts, trail, cls, t: Math.random(), bank: 0, prevDir: new THREE.Vector3(0, 0, 1), curve, curveLen, climb: 0, phase, label, ring, dropLine, dropPos, reticle, fusedMods: new Set() });
+  // Hostiles begin at path-fraction 0 = the FAR waypoint, so they always ingress from outside sensor
+  // range (no random mid-path spawn already sitting on the asset). Non-threats vary their phase.
+  const startT = t.truth === "hostile" ? 0 : Math.random();
+  live.push({ track: t, ...parts, trail, cls, t: startT, bank: 0, prevDir: new THREE.Vector3(0, 0, 1), curve, curveLen, climb: 0, phase, label, ring, dropLine, dropPos, reticle, fusedMods: new Set(), detected: false });
+}
+
+/** First-acquisition reveal: a track stays grey/UNKNOWN until a sensor sees it, then we recolor the
+ *  airframe + trail + drop-line + reticle to its real threat color, swap the label to the classified
+ *  call, light the HIGH ring, and log the acquisition. The classifier result itself never changed —
+ *  we only delay REVEALING it until a sensor actually holds the track. */
+function revealLive(l: Live, sensorId: string): void {
+  if (l.detected) return;
+  l.detected = true;
+  const real = THREAT_COLOR[l.cls.threat];
+  const bm = l.body.material as THREE.MeshStandardMaterial;
+  bm.color.setHex(real); bm.emissive.setHex(real);
+  (l.trail.material as THREE.LineBasicMaterial).color.setHex(real);
+  (l.dropLine.material as THREE.LineBasicMaterial).color.setHex(real);
+  (l.reticle.material as THREE.MeshBasicMaterial).color.setHex(real);
+  scene.remove(l.label);
+  const lab = makeLabel(`${l.track.id} · ${l.cls.class.toUpperCase()} · ${l.cls.threat}`, real);
+  lab.position.copy(l.label.position);
+  scene.add(lab); l.label = lab;
+  if (l.ring) l.ring.visible = true;
+  logEvent(`${sensorId} acquires ${l.track.id} on approach — classified ${l.cls.class.toUpperCase()} / ${l.cls.threat}.`, clock.elapsedTime);
 }
 
 // --- live detection lines: one per (sensor, track); shown only while that sensor sees the track ---
@@ -1338,7 +1365,7 @@ function animate() {
     // D7: ingress urgency — a HIGH track that has penetrated the no-fly radius blinks its tail
     // strobe faster and rides a brighter, more opaque trail so the incursion reads as urgent.
     const rangeToAsset = Math.hypot(p.x, p.z);
-    const ingress = l.cls.threat === "HIGH" && rangeToAsset < SITE.noFlyR;
+    const ingress = l.detected && l.cls.threat === "HIGH" && rangeToAsset < SITE.noFlyR;
     // D8: a track held by ≥2 distinct sensor modalities is "FUSED" — lift the strobe's off-floor to
     // a steady glimmer and bump its trail so high-confidence (multi-sensor) tracks read at a glance.
     // (fusedMods is recomputed in the detection loop below, so this uses last frame's state — fine.)
@@ -1410,7 +1437,10 @@ function animate() {
       const dot = (dx * Math.cos(d.s.bearing) + dz * -Math.sin(d.s.bearing)) / (range || 1);
       seen = Math.acos(THREE.MathUtils.clamp(dot, -1, 1)) <= d.s.halfAngle;
     }
-    if (seen) d.l.fusedMods.add(d.s.mode);   // D8: record this modality as currently holding the track
+    if (seen) {
+      d.l.fusedMods.add(d.s.mode);   // D8: record this modality as currently holding the track
+      if (!d.l.detected) revealLive(d.l, d.s.site.id); // first acquisition → classify the unknown blip
+    }
     // D10: ease opacity toward target so an "acquiring" sweep fades in/out smoothly rather than flickering.
     const target = seen ? DET_OP_MAX : 0;
     d.op += (target - d.op) * Math.min(1, dt * 6);
@@ -1469,7 +1499,7 @@ function animate() {
   const fusedCount = live.filter((l) => l.fusedMods.size >= 2).length;  // D8: multi-sensor tracks
   // D11: tally tracks per threat level and write the live counts into the legend swatches
   const tally: Record<string, number> = { HIGH: 0, MED: 0, LOW: 0, NONE: 0 };
-  for (const l of live) tally[l.cls.threat] = (tally[l.cls.threat] ?? 0) + 1;
+  for (const l of live) if (l.detected) tally[l.cls.threat] = (tally[l.cls.threat] ?? 0) + 1;
   for (const [lvl, el] of legendCounts) el.textContent = String(tally[lvl] ?? 0);
   clockEl.textContent = `T+${clock.elapsedTime.toFixed(1)}s · ${live.length} tracks · ${tally.HIGH} HIGH · ${fusedCount} FUSED`;
   composer.render();

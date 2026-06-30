@@ -49,10 +49,11 @@ export const sensors: SensorSite[] = [
   { id: "EO-1", modality: "eoir", x: 110, z: -70, rangeM: 380 },
 ];
 
-/** A loop path from an edge, weaving toward the protected asset. */
-function ingressPath(startAngleDeg: number, altM: number): Waypoint[] {
+/** A loop path from an edge, weaving toward the protected asset.
+ *  `r0` is the start/turn-around radius — hostiles begin FAR outside sensor range (large r0) so they
+ *  are acquired and classified on the way IN, not spawned already sitting inside the no-fly volume. */
+function ingressPath(startAngleDeg: number, altM: number, r0 = 480): Waypoint[] {
   const a = (startAngleDeg * Math.PI) / 180;
-  const r0 = 480;
   return [
     { x: Math.cos(a) * r0, y: altM, z: Math.sin(a) * r0 },
     { x: Math.cos(a) * 320, y: altM * 0.9, z: Math.sin(a) * 320 },
@@ -66,7 +67,7 @@ export function tracks(): DroneTrack[] {
   return [
     {
       id: "0427", truth: "hostile", speedMps: 14,
-      path: ingressPath(41, 120),
+      path: ingressPath(41, 120, 900),   // starts far out (>radar 500m) — classified on approach
       features: { trackId: "0427", rcsM2: 0.05, altM: 120, speedMps: 14, rfEmitter: "commercial-uas-c2", thermalQuad: true, friendlyTransponder: false, insideNoFly: true },
     },
     {
@@ -81,7 +82,7 @@ export function tracks(): DroneTrack[] {
     },
     {
       id: "0318", truth: "hostile", speedMps: 18,
-      path: ingressPath(120, 95),
+      path: ingressPath(120, 95, 900),   // starts far out (>radar 500m) — classified on approach
       features: { trackId: "0318", rcsM2: 0.09, altM: 95, speedMps: 18, rfEmitter: "commercial-uas-c2", thermalQuad: true, friendlyTransponder: false, insideNoFly: true },
     },
   ];
