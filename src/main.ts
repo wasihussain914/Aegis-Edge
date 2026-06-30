@@ -16,9 +16,10 @@ import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { buildings, sensors, tracks, SITE, type DroneTrack, type SensorSite } from "./data/scenario.js";
 import { classify, explainTemplate, type Classification } from "./model/threatCall.js";
 import { fetchNarration } from "./narrate.js";
-import { MARINE_BEACHHEAD, tankColumnAt, columnPositionAt } from "./data/coopScenario.js";
+import { MARINE_BEACHHEAD, tankColumnAt, columnPositionAt, COOP_TRACKS, coopLinkUpAt } from "./data/coopScenario.js";
 import { unitCoverages } from "./coop/coverage.js";
-import type { Unit } from "./coop/types.js";
+import { unitSees, airPicture } from "./coop/coordination.js";
+import type { Unit, Track, Faction } from "./coop/types.js";
 
 const THREAT_COLOR: Record<string, number> = { HIGH: 0xff4d5e, MED: 0xffc14d, LOW: 0x5dd6a0, NONE: 0x6fa8ff };
 
@@ -444,6 +445,53 @@ const coopUnits: CoopUnitView[] = [];
     coopUnits.push({ unit: u, group: grp, mobile: u.mobile });
   }
 }
+
+// --- coop drones: blue / red / green by FACTION (B3, DOD-6) ---
+// The coop air picture is a small set of faction-classified tracks the two units cooperate over.
+// Coloring is by `faction` (friendly=blue, hostile=red, neutral=green) — distinct from the single-
+// site demo's threat coloring — reusing the same palette swatches as the HUD faction legend. These
+// are additive markers; the single-site threat drones above are untouched.
+const FACTION_COLOR: Record<Faction, number> = { friendly: 0x6fa8ff, hostile: 0xff4d5e, neutral: 0x5dd6a0 };
+const FACTION_LABEL: Record<Faction, string> = { friendly: "FRIENDLY", hostile: "HOSTILE", neutral: "NEUTRAL" };
+const COOP_DRONE_ALT = 95;
+interface CoopDroneView { track: Track; group: THREE.Group; rotors: THREE.Object3D[]; phase: number; }
+const coopDrones: CoopDroneView[] = [];
+for (const t of COOP_TRACKS) {
+  const color = FACTION_COLOR[t.faction];
+  const parts = makeDrone(color);
+  parts.group.position.set(t.pos.x, COOP_DRONE_ALT, t.pos.z);
+  scene.add(parts.group);
+  const label = makeLabel(`${t.id} · ${FACTION_LABEL[t.faction]}`, color);
+  label.position.set(t.pos.x, COOP_DRONE_ALT + 16, t.pos.z); scene.add(label);
+  const phase = ([...t.id].reduce((a, c) => a + c.charCodeAt(0), 0) % 360) * (Math.PI / 180);
+  coopDrones.push({ track: t, group: parts.group, rotors: parts.rotors, phase });
+}
+
+// --- Link-16 + fusion (C1/C2, DOD-3/4/5) ---
+// One line between the two units that lights when Link-16 is up (coopLinkUpAt, the tested core);
+// and per-(unit,track) "picture" lines that show which unit holds which track. Before link-up the
+// two pictures differ; when the link comes up a beachhead-only track gains a SECOND line from the
+// Column — the visible fusion moment. The deterministic core decides everything; we only draw it.
+const LINK_UP_COLOR = 0x5dd6a0, LINK_DOWN_COLOR = 0x44506e, FUSE_COLOR = 0x9fe8ff;
+const linkPos = new Float32Array(6);
+const linkGeo = new THREE.BufferGeometry();
+linkGeo.setAttribute("position", new THREE.BufferAttribute(linkPos, 3));
+const linkLine = new THREE.Line(linkGeo, new THREE.LineBasicMaterial({ color: LINK_UP_COLOR, transparent: true, opacity: 0.8 }));
+linkLine.frustumCulled = false; scene.add(linkLine);
+// per (unit-index, drone) picture line — unit 0 = Beachhead (static), unit 1 = Column (mobile)
+interface PicLine { unitIdx: 0 | 1; drone: CoopDroneView; line: THREE.Line; pos: Float32Array; op: number; }
+const picLines: PicLine[] = [];
+for (const ui of [0, 1] as const) for (const d of coopDrones) {
+  const pos = new Float32Array(6);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: FACTION_COLOR[d.track.faction], transparent: true, opacity: 0 }));
+  line.visible = false; line.frustumCulled = false; scene.add(line);
+  picLines.push({ unitIdx: ui, drone: d, line, pos, op: 0 });
+}
+const link16El = document.getElementById("link16")!;
+const airpicEl = document.getElementById("airpic")!;
+let linkWasUp = false;
 
 // --- drones ---
 interface Live {
@@ -904,6 +952,62 @@ function animate() {
     const cp = columnPositionAt(clock.elapsedTime, 1);
     cu.group.position.set(cp.x, 0, cp.z);
   }
+  // --- C1/C2: Link-16 state + per-unit air pictures + fusion (deterministic core decides) ---
+  // Rebuild live unit objects from the same tested functions the renderer uses for position, so the
+  // air picture matches exactly what's on screen. The Column's pos rides columnPositionAt(elapsed).
+  const beachUnit = MARINE_BEACHHEAD;
+  const colUnit = tankColumnAt(clock.elapsedTime, 1);
+  const coopUnitObjs: [Unit, Unit] = [beachUnit, colUnit];
+  const link = coopLinkUpAt(clock.elapsedTime, "persistent", 1);
+  // idle life for the coop drones: spin rotors + a gentle altitude bob (deterministic per-track phase)
+  for (const d of coopDrones) {
+    for (const r of d.rotors) r.rotation.y += dt * 30;
+    d.group.position.y = COOP_DRONE_ALT + Math.sin(clock.elapsedTime * 1.3 + d.phase) * 3;
+  }
+  // Link-16 line between the two units; color/opacity reflect link state; status text in the HUD.
+  {
+    const a = coopUnits[0].group.position, b = coopUnits[1].group.position;
+    linkPos[0] = a.x; linkPos[1] = 14; linkPos[2] = a.z;
+    linkPos[3] = b.x; linkPos[4] = 14; linkPos[5] = b.z;
+    (linkLine.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
+    const lm = linkLine.material as THREE.LineBasicMaterial;
+    if (link) { lm.color.setHex(LINK_UP_COLOR); lm.opacity = 0.55 + 0.25 * ((Math.sin(clock.elapsedTime * 4) + 1) / 2); }
+    else { lm.color.setHex(LINK_DOWN_COLOR); lm.opacity = 0.18; }
+    const gap = Math.round(Math.hypot(a.x - b.x, a.z - b.z));
+    link16El.textContent = link
+      ? `LINK-16 · ✓ ESTABLISHED · ${gap}m · pictures fused`
+      : `LINK-16 · ⌛ acquiring… Column ${gap}m out (link ≤600m)`;
+    link16El.style.color = link ? "#7df0b8" : "#c9a14d";
+  }
+  // Per-unit air pictures from the core; a picture line is drawn from a unit to each track it holds.
+  const bPic = new Set(airPicture(beachUnit, colUnit, COOP_TRACKS, link).map((t) => t.id));
+  const cPic = new Set(airPicture(colUnit, beachUnit, COOP_TRACKS, link).map((t) => t.id));
+  for (const pl of picLines) {
+    const unitObj = coopUnitObjs[pl.unitIdx];
+    const pic = pl.unitIdx === 0 ? bPic : cPic;
+    const holds = pic.has(pl.drone.track.id);
+    // a track held by a unit ONLY because the link fused it (the unit can't see it itself) draws in
+    // the fusion tint — that's the visible "single-unit track became shared" moment (DOD-5).
+    const fused = holds && !unitSees(unitObj, pl.drone.track);
+    const target = holds ? (fused ? 0.5 : 0.28) : 0;
+    pl.op += (target - pl.op) * Math.min(1, dt * 5);
+    if (pl.op < 0.01 && !holds) pl.op = 0;
+    pl.line.visible = pl.op > 0.01;
+    if (pl.line.visible) {
+      const up = coopUnits[pl.unitIdx].group.position, dp = pl.drone.group.position;
+      pl.pos[0] = up.x; pl.pos[1] = 12; pl.pos[2] = up.z;
+      pl.pos[3] = dp.x; pl.pos[4] = dp.y; pl.pos[5] = dp.z;
+      (pl.line.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
+      const m = pl.line.material as THREE.LineBasicMaterial;
+      m.color.setHex(fused ? FUSE_COLOR : FACTION_COLOR[pl.drone.track.faction]);
+      m.opacity = pl.op;
+    }
+  }
+  airpicEl.textContent = `AIR PICTURE · Beachhead ${bPic.size} · Column ${cPic.size}` +
+    (link && cPic.size > 0 ? ` · ${[...bPic].filter((id) => cPic.has(id)).length} shared` : "");
+  if (link && !linkWasUp) airpicEl.style.color = "#9fe8ff"; // flash the fusion moment
+  else if (!link) airpicEl.style.color = "#6f87ad";
+  linkWasUp = link;
   for (const l of live) {
     // Arc-length lookups: u is fraction of distance, so ground speed is constant in m/s
     // regardless of how the spline bunches near waypoints (smooth, real-looking motion).

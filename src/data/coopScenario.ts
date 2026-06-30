@@ -8,7 +8,9 @@
  *
  * Coordinates: site-local meters (x east, z north), same frame as scenario.ts.
  */
-import type { Unit } from "../coop/types.js";
+import type { Unit, Track } from "../coop/types.js";
+import { linkUp, commsAvailable } from "../coop/coordination.js";
+import type { CommsCase } from "../coop/types.js";
 
 /** Link-16 establishes purely on range between the two units (no terrain LOS). */
 export const LINK_RANGE_M = 600;
@@ -60,3 +62,34 @@ export function tankColumnAt(tick: number, dtSec = 1): Unit {
 
 /** The Column at t=0 (initial render). Use tankColumnAt(tick) to advance it. */
 export const ARMY_TANK_COLUMN: Unit = tankColumnAt(0);
+
+/**
+ * Coop air picture — the drones the two units are cooperating over (DOD-6 factions; DOD-3/5 fusion).
+ * Static positions, chosen against the unit sensor geometry so the picture is meaningful:
+ *   - HOSTILE-1 sits in the Beachhead's radar but outside the Column's reach for the whole run, so
+ *     it is a BEACHHEAD-ONLY track until the link comes up — the clean DOD-5 "single-unit → shared"
+ *     demonstration once Link-16 establishes.
+ *   - NEUTRAL-1 sits far east, only inside the Column's radar while it's still out at standoff start,
+ *     so at t=0 the Column holds a track the Beachhead can't see → the two pictures DIFFER (DOD-3).
+ *   - HOSTILE-2 closes-range hostile near the Column's standoff, in range of both once linked — the
+ *     red threat that will drive the Phase-D engagement.
+ *   - FRIEND-1 a blue friendly that must never be engaged.
+ * ≥1 red (two), ≥1 blue, ≥1 green — satisfies the faction-coloring requirement.
+ */
+export const COOP_TRACKS: Track[] = [
+  { id: "HOSTILE-1", pos: { x: -140, z: 300 }, faction: "hostile", threat: "HIGH" },
+  { id: "HOSTILE-2", pos: { x: 240, z: 140 }, faction: "hostile", threat: "HIGH" },
+  { id: "FRIEND-1", pos: { x: 120, z: -260 }, faction: "friendly", threat: "NONE" },
+  { id: "NEUTRAL-1", pos: { x: 900, z: 120 }, faction: "neutral", threat: "NONE" },
+];
+
+/**
+ * Deterministic Link-16 state between the two units at a given tick. The Column closes on the
+ * Beachhead (tested motion), so the link establishes purely on range; in Case 2 (intermittent)
+ * comms also drops ~30% of ticks. Pure — the renderer and the tests share this one source of truth
+ * so "link establishes as the Column closes" (DOD-4) is test-backed, not eyeballed.
+ */
+export function coopLinkUpAt(tick: number, comms: CommsCase = "persistent", dtSec = 1): boolean {
+  const column = tankColumnAt(tick, dtSec);
+  return linkUp(MARINE_BEACHHEAD, column, LINK_RANGE_M, commsAvailable(comms, tick));
+}

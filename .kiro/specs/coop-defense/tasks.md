@@ -17,13 +17,14 @@ added smoke tests. Keep the dusk/command-center aesthetic. Map every task to its
       moves toward the Beachhead over time. (DOD-1 — data+motion done & tested; render is B2)
 - [x] B2. Render both units in 3D with **distinct sensor-coverage volumes**; the Tank Column's
       radar dome is visibly smaller than the Beachhead's. (DOD-1, DOD-2)
-- [ ] B3. Drones render **blue (friendly) / red (hostile) / green (neutral)** from `faction`;
-      ≥1 red threat present. (DOD-6)
+- [x] B3. Drones render **blue (friendly) / red (hostile) / green (neutral)** from `faction`;
+      ≥1 red threat present. (DOD-6 — coloring + 2 red present done & tested; the engagement that
+      fully closes DOD-6 is Phase D, so DOD-6 stays unchecked here.)
 
 ## Phase C — link + fusion, visible
-- [ ] C1. Drive link state from `linkUp()`; render a **Link-16 line + status indicator** that
+- [x] C1. Drive link state from `linkUp()`; render a **Link-16 line + status indicator** that
       establishes as the Column closes into range. (DOD-4)
-- [ ] C2. Per-unit air picture from `airPicture()`: ≥1 track visible to ONE unit before link-up,
+- [x] C2. Per-unit air picture from `airPicture()`: ≥1 track visible to ONE unit before link-up,
       to BOTH after; show the fusion moment. (DOD-3, DOD-5)
 
 ## Phase D — engagement, negotiation, explanation
@@ -49,9 +50,9 @@ added smoke tests. Keep the dusk/command-center aesthetic. Map every task to its
 ## DEFINITION OF DONE (the loop checks these off; STOP when all are ✓)
 - [x] DOD-1 both units render; Column moves toward Beachhead
 - [x] DOD-2 distinct coverage; Column radar visibly limited
-- [ ] DOD-3 out-of-range air pictures differ
-- [ ] DOD-4 Link-16 establishes w/ visual + status
-- [ ] DOD-5 link-up fuses; ≥1 single-unit track becomes shared
+- [x] DOD-3 out-of-range air pictures differ
+- [x] DOD-4 Link-16 establishes w/ visual + status
+- [x] DOD-5 link-up fuses; ≥1 single-unit track becomes shared
 - [ ] DOD-6 blue/red/green drones; ≥1 red drives an engagement
 - [ ] DOD-7 ROE+position negotiation resolves an engagement (in log)
 - [ ] DOD-8 shoot-and-shout; other unit stands down

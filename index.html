@@ -88,6 +88,14 @@
       #legend .sw { width: 10px; height: 10px; border-radius: 3px; display: inline-block;
         box-shadow: 0 0 5px currentColor; }
       #legend .ct { color: #eaf2ff; font-weight: 700; font-variant-numeric: tabular-nums; }
+      /* --- coop: Link-16 status + air-picture readout + faction key (C1/C2/B3) --- */
+      #coop { margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(80,140,220,.18); }
+      #coop .sub { font-size: 11px; margin-top: 3px; font-variant-numeric: tabular-nums; }
+      #flegend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 7px; }
+      #flegend .lg { display: flex; align-items: center; gap: 5px; font-size: 10.5px;
+        color: #9db4d6; letter-spacing: .04em; }
+      #flegend .sw { width: 10px; height: 10px; border-radius: 3px; display: inline-block;
+        box-shadow: 0 0 5px currentColor; }
     </style>
   </head>
   <body>
@@ -102,6 +110,15 @@
         <span class="lg"><span class="sw" style="background:#ffc14d;color:#ffc14d"></span>MED <span class="ct" data-lvl="MED">0</span></span>
         <span class="lg"><span class="sw" style="background:#5dd6a0;color:#5dd6a0"></span>LOW <span class="ct" data-lvl="LOW">0</span></span>
         <span class="lg"><span class="sw" style="background:#6fa8ff;color:#6fa8ff"></span>NONE <span class="ct" data-lvl="NONE">0</span></span>
+      </div>
+      <div id="coop">
+        <div class="sub" id="link16">LINK-16 · ⌛ acquiring…</div>
+        <div class="sub" id="airpic">AIR PICTURE · Beachhead 0 · Column 0</div>
+        <div id="flegend">
+          <span class="lg"><span class="sw" style="background:#6fa8ff;color:#6fa8ff"></span>FRIENDLY</span>
+          <span class="lg"><span class="sw" style="background:#ff4d5e;color:#ff4d5e"></span>HOSTILE</span>
+          <span class="lg"><span class="sw" style="background:#5dd6a0;color:#5dd6a0"></span>NEUTRAL</span>
+        </div>
       </div>
       <div id="cams">
         <button class="cam active" data-view="oblique">Oblique</button>

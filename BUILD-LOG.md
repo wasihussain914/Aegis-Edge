@@ -252,3 +252,24 @@ Newest at the bottom. One line per iteration: date/time, task, how verified.
   **DOD-2** (distinct coverage; Column radar visibly limited, dome 200m vs 500m) — both now checked.
   Verified: `npm run typecheck` clean, `npm test` 22/22 pass (3 new), `npm run build` green
   (dist 572.28 kB; pre-existing three.js chunk-size warning only). Next: B3 blue/red/green drones.
+- 2026-06-30 14:2x CDT — B3+C1+C2 done (Chopper): the coop air picture, Link-16 and fusion.
+  **Data/core (deterministic, tested)** `src/data/coopScenario.ts`: `COOP_TRACKS` — 2 red hostiles,
+  1 blue friendly, 1 green neutral, positioned against the unit sensor geometry so HOSTILE-1 stays
+  Beachhead-only (in its radar, beyond the Column's reach all run) and NEUTRAL-1 is Column-only at
+  standoff-start (far east, in the Column's radar, beyond the Beachhead) — so the two pictures DIFFER
+  out of range; plus `coopLinkUpAt(tick,comms)` reusing `linkUp`+`commsAvailable` over the tested
+  Column motion (one shared source of truth for renderer + tests). **4 new tests** (`coopScenario.test.ts`):
+  DOD-6 factions incl. ≥1 red; DOD-4 link down@t=0 / up@t=60; DOD-3 pictures differ out of range
+  (Beachhead holds HOSTILE-1 & not NEUTRAL-1, Column the reverse); DOD-5 HOSTILE-1 single-unit →
+  shared on link-up via `airPicture` union. **Render (additive)** `src/main.ts`: coop drones drawn
+  blue/red/green by `faction` (reusing `makeDrone`/`makeLabel`, idle rotor+bob); a Link-16 line
+  between the units that pulses green when up / dims when acquiring, with a HUD status (gap metres +
+  ESTABLISHED/acquiring); per-(unit,track) picture lines from `airPicture()` — a line a unit holds
+  ONLY via the link draws in the cyan fusion tint (the visible single-unit→shared moment); HUD
+  air-picture readout `Beachhead N · Column M · K shared` that flashes on the fusion moment.
+  `index.html`: #coop HUD block (link16 + airpic + faction legend) + CSS. **DoD checked: DOD-3,
+  DOD-4, DOD-5** (B3/C1/C2 task boxes too). DOD-6 left UNCHECKED — coloring + red threats present &
+  tested, but the box also needs a red to *drive an engagement* (Phase D). Verified: `npm run
+  typecheck` clean, `npm test` 26/26 (4 new), `npm run build` green (dist 575.67 kB; pre-existing
+  three.js chunk-size warning only). Single-site demo + its tests untouched; LLM off every decision.
+  Next: Phase D (D1 event/negotiation log, D2 shoot-and-shout in scene, D3 click→rationale) → DOD-6/7/8/11.
