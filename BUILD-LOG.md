@@ -205,3 +205,8 @@ Newest at the bottom. One line per iteration: date/time, task, how verified.
   op>0.01 so the fade-out trails the drone. D8 fusion still counts only on actual `seen`. Cheap;
   classifier untouched.
 - Verified: `npm run typecheck` + `npm run build` both green.
+- 2026-06-30 06:0x CDT — D11 done (Chopper). Threat legend in the HUD: a compact color key under the
+  ledger line with HIGH/MED/LOW/NONE swatches (matching THREAT_COLOR), each followed by a live
+  per-level track count updated every frame from `live`. Lets a viewer decode the threat coloring
+  at a glance without clicking (R1.4/R2). One cheap per-frame tally + DOM write; classifier untouched;
+  clock line now reuses the same tally. Verified: `npm run typecheck` + `npm run build` both green.

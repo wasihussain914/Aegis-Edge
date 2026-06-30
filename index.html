@@ -81,6 +81,13 @@
         opacity: 0; transition: opacity .45s ease; pointer-events: none;
       }
       #demoCaption.show { opacity: 1; }
+      /* --- D11 threat legend: color key + live per-level track count --- */
+      #legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+      #legend .lg { display: flex; align-items: center; gap: 5px; font-size: 10.5px;
+        color: #9db4d6; letter-spacing: .04em; }
+      #legend .sw { width: 10px; height: 10px; border-radius: 3px; display: inline-block;
+        box-shadow: 0 0 5px currentColor; }
+      #legend .ct { color: #eaf2ff; font-weight: 700; font-variant-numeric: tabular-nums; }
     </style>
   </head>
   <body>
@@ -90,6 +97,12 @@
       <div class="sub">Counter-UAS · 1 km² · explainable threat-call at the edge</div>
       <div class="sub" id="clock" style="margin-top:6px;"></div>
       <div class="sub" id="ledger" style="margin-top:2px;">audit ledger · 0 entries</div>
+      <div id="legend">
+        <span class="lg"><span class="sw" style="background:#ff4d5e;color:#ff4d5e"></span>HIGH <span class="ct" data-lvl="HIGH">0</span></span>
+        <span class="lg"><span class="sw" style="background:#ffc14d;color:#ffc14d"></span>MED <span class="ct" data-lvl="MED">0</span></span>
+        <span class="lg"><span class="sw" style="background:#5dd6a0;color:#5dd6a0"></span>LOW <span class="ct" data-lvl="LOW">0</span></span>
+        <span class="lg"><span class="sw" style="background:#6fa8ff;color:#6fa8ff"></span>NONE <span class="ct" data-lvl="NONE">0</span></span>
+      </div>
       <div id="cams">
         <button class="cam active" data-view="oblique">Oblique</button>
         <button class="cam" data-view="top">Top</button>

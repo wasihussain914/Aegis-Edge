@@ -73,7 +73,7 @@ if stuck. **The loop appends new tasks under "Discovered" as it learns.** Verify
       in/out (and optionally taper toward the track) so a sweep "acquiring" a track reads smoothly
       rather than flickering — animate material.opacity toward a target each frame (R1.3 polish).
       Cheap; classifier untouched. Keep build green and 60 fps.
-- [ ] D11. Threat legend in the HUD: a compact color key (HIGH/MED/LOW/NONE swatches) with the live
+- [x] D11. Threat legend in the HUD: a compact color key (HIGH/MED/LOW/NONE swatches) with the live
       per-level track count, so a viewer can decode the threat coloring at a glance without clicking
       (R1.4 HIGH unmistakable, R2 readability). Update counts from `live` each frame; cheap DOM
       write into the existing #hud block. Classifier untouched.

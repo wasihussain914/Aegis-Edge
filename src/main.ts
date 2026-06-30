@@ -807,6 +807,11 @@ renderer.domElement.addEventListener("pointerdown", () => stopDemo());
 // --- loop ---
 const clock = new THREE.Clock();
 const clockEl = document.getElementById("clock")!;
+// D11: live per-threat-level counts feed the HUD legend swatches so a viewer can decode the coloring
+const legendCounts = new Map<string, HTMLElement>();
+for (const el of document.querySelectorAll<HTMLElement>("#legend .ct")) {
+  if (el.dataset.lvl) legendCounts.set(el.dataset.lvl, el);
+}
 function animate() {
   requestAnimationFrame(animate);
   const dt = clock.getDelta();
@@ -960,7 +965,11 @@ function animate() {
   if (camAnimT >= 1 && !followHostile) controls.update();          // operator orbit + damping
   else camera.lookAt(controls.target);
   const fusedCount = live.filter((l) => l.fusedMods.size >= 2).length;  // D8: multi-sensor tracks
-  clockEl.textContent = `T+${clock.elapsedTime.toFixed(1)}s · ${live.length} tracks · ${live.filter((l) => l.cls.threat === "HIGH").length} HIGH · ${fusedCount} FUSED`;
+  // D11: tally tracks per threat level and write the live counts into the legend swatches
+  const tally: Record<string, number> = { HIGH: 0, MED: 0, LOW: 0, NONE: 0 };
+  for (const l of live) tally[l.cls.threat] = (tally[l.cls.threat] ?? 0) + 1;
+  for (const [lvl, el] of legendCounts) el.textContent = String(tally[lvl] ?? 0);
+  clockEl.textContent = `T+${clock.elapsedTime.toFixed(1)}s · ${live.length} tracks · ${tally.HIGH} HIGH · ${fusedCount} FUSED`;
   composer.render();
 }
 animate();
