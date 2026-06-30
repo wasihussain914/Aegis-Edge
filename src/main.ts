@@ -495,6 +495,7 @@ function makeLabel(text: string, color: number): THREE.Sprite {
   const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false }));
   sp.scale.set(w * 0.3, h * 0.3, 1);
+  sp.userData.baseScale = sp.scale.clone();   // D12: rest size, so the select scale-pulse can return to it
   sp.renderOrder = 999;
   return sp;
 }
@@ -573,6 +574,21 @@ overlay.append(leader, leaderDot);
 overlay.style.display = "none";
 document.body.appendChild(overlay);
 let selected: Live | null = null;
+
+// D12: selected-track emphasis — a thin animated reticle (two opposing brackets that spin) parks on
+// the chosen drone, distinct from the HIGH threat ring (full, red, pulsing). One shared object,
+// shown only while a track is selected; paired with a gentle scale-pulse of that track's label.
+const selRing = new THREE.Group();
+{
+  const mat = new THREE.MeshBasicMaterial({
+    color: 0x9fe8ff, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false,
+  });
+  for (const start of [0, Math.PI]) {                    // two opposing arcs so the spin reads
+    const arc = new THREE.Mesh(new THREE.RingGeometry(15, 17, 40, 1, start + 0.32, Math.PI - 0.64), mat);
+    arc.rotation.x = -Math.PI / 2; selRing.add(arc);     // lie flat so the parent spins it about Y
+  }
+}
+selRing.visible = false; selRing.renderOrder = 998; scene.add(selRing);
 
 /** Select a track: tint the leader line to its threat color and open the threat-call panel.
  *  Shared by the click handler and the T10 scripted demo so both drive selection identically. */
@@ -880,6 +896,14 @@ function animate() {
     l.reticle.position.set(p.x, 1.2, p.z);
     // floating label rides above the drone; HIGH tracks get a pulsing ground ring
     l.label.position.set(p.x, p.y + 15, p.z);
+    // D12: gently scale-pulse the selected track's label so the chosen track is obvious; others rest
+    const bs = l.label.userData.baseScale as THREE.Vector3;
+    if (l === selected) {
+      const k = 1 + 0.13 * ((Math.sin(clock.elapsedTime * 3) + 1) / 2);
+      l.label.scale.set(bs.x * k, bs.y * k, 1);
+    } else if (l.label.scale.x !== bs.x) {
+      l.label.scale.copy(bs);                            // restore on deselect
+    }
     if (l.ring) {
       const pulse = (Math.sin(clock.elapsedTime * 4) + 1) / 2;
       l.ring.position.set(p.x, 2, p.z);
@@ -887,6 +911,13 @@ function animate() {
       (l.ring.material as THREE.MeshBasicMaterial).opacity = 0.2 + pulse * 0.5;
     }
   }
+  // D12: park the spinning selection reticle on the selected track (hidden when nothing is selected)
+  if (selected) {
+    const p = selected.group.position;
+    selRing.position.set(p.x, p.y, p.z);
+    selRing.rotation.y += dt * 1.4;
+    selRing.visible = true;
+  } else selRing.visible = false;
   // advance each sensor's scan (radar spins 360°; rf/eoir oscillate over their sweepSpan)
   for (const s of liveSensors) {
     if (s.spin) s.bearing = (s.bearing + dt * s.spin) % (Math.PI * 2);

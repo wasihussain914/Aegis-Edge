@@ -77,7 +77,7 @@ if stuck. **The loop appends new tasks under "Discovered" as it learns.** Verify
       per-level track count, so a viewer can decode the threat coloring at a glance without clicking
       (R1.4 HIGH unmistakable, R2 readability). Update counts from `live` each frame; cheap DOM
       write into the existing #hud block. Classifier untouched.
-- [ ] D12. Selected-track emphasis in 3D: when a track is selected, add a thin animated selection
+- [x] D12. Selected-track emphasis in 3D: when a track is selected, add a thin animated selection
       ring around its drone (distinct from the HIGH threat ring) and gently scale-pulse its label so
       the chosen track is obvious in the scene, reinforcing the leader line (R2 readability). Clear
       on deselect. Deterministic + cheap; keep build green and 60 fps.

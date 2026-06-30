@@ -210,3 +210,9 @@ Newest at the bottom. One line per iteration: date/time, task, how verified.
   per-level track count updated every frame from `live`. Lets a viewer decode the threat coloring
   at a glance without clicking (R1.4/R2). One cheap per-frame tally + DOM write; classifier untouched;
   clock line now reuses the same tally. Verified: `npm run typecheck` + `npm run build` both green.
+- 2026-06-30 06:2x CDT — D12 done (Chopper). Selected-track emphasis in 3D: one shared spinning
+  reticle (two opposing cyan brackets, RingGeometry arcs laid flat, parent spun about Y) parks on the
+  selected drone each frame and hides on deselect — visually distinct from the full red pulsing HIGH
+  threat ring. Paired with a gentle scale-pulse of the selected track's label (baseScale stored on the
+  sprite at creation so it restores cleanly on deselect). Reinforces the leader line (R2 readability).
+  Deterministic + cheap (4 tracks); classifier untouched. Verified: `npm run typecheck` + `npm run build` both green.
