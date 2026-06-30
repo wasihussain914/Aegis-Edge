@@ -99,6 +99,25 @@
         color: #9db4d6; letter-spacing: .04em; }
       #flegend .sw { width: 10px; height: 10px; border-radius: 3px; display: inline-block;
         box-shadow: 0 0 5px currentColor; }
+      /* --- Phase E operator controls: mode / comms / perspective + approval gate --- */
+      #coop .ctl { display: flex; align-items: center; gap: 5px; margin-top: 6px; flex-wrap: wrap; }
+      #coop .ctl .lbl { font-size: 9.5px; letter-spacing: .08em; color: #6f87ad; width: 46px; }
+      #coop .cbtn { font: 600 9.5px/1 ui-sans-serif, system-ui, sans-serif; cursor: pointer;
+        padding: 4px 7px; border-radius: 5px; background: #14202f; color: #9db4d6;
+        border: 1px solid #314360; transition: all .12s; letter-spacing: .03em; }
+      #coop .cbtn:hover { border-color: #6f87ad; color: #cfe3ff; }
+      #coop .cbtn.active { background: #13314a; color: #8fd0ff; border-color: #4a9fe0; }
+      #coopgate { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
+      #coopgate .gate { font-size: 10px; line-height: 1.3; border: 1px solid rgba(255,170,80,.55);
+        border-radius: 6px; padding: 5px 7px; background: rgba(60,40,10,.35); color: #ffd9a0;
+        font-variant-numeric: tabular-nums; box-shadow: 0 0 10px rgba(255,170,80,.12); }
+      #coopgate .gate .gbtns { display: flex; gap: 5px; margin-top: 4px; }
+      #coopgate .gate button { font: 600 9.5px/1 ui-sans-serif, system-ui, sans-serif; cursor: pointer;
+        padding: 3px 8px; border-radius: 5px; border: 1px solid #314360; background: #14202f; color: #cfe3ff; }
+      #coopgate .gate button.appr { border-color: #2f6f4a; color: #7df0b8; }
+      #coopgate .gate button.appr:hover { border-color: #5dd6a0; color: #b6ffd9; }
+      #coopgate .gate button.deny { border-color: #6f3030; color: #ff9aa2; }
+      #coopgate .gate button.deny:hover { border-color: #ff6b78; }
     </style>
   </head>
   <body>
@@ -117,6 +136,24 @@
       <div id="coop">
         <div class="sub" id="link16">LINK-16 · ⌛ acquiring…</div>
         <div class="sub" id="airpic">AIR PICTURE · Beachhead 0 · Column 0</div>
+        <div class="sub" id="coopersp" style="color:#8fd0ff;">PERSPECTIVE · Marine Beachhead</div>
+        <div class="ctl" id="modeCtl">
+          <span class="lbl">MODE</span>
+          <button class="cbtn" data-mode="manual">Manual</button>
+          <button class="cbtn" data-mode="combined">Combined</button>
+          <button class="cbtn active" data-mode="autonomous">Autonomous</button>
+        </div>
+        <div class="ctl" id="commsCtl">
+          <span class="lbl">COMMS</span>
+          <button class="cbtn active" data-comms="persistent">Case 1</button>
+          <button class="cbtn" data-comms="intermittent">Case 2</button>
+        </div>
+        <div class="ctl" id="perspCtl">
+          <span class="lbl">VIEW AS</span>
+          <button class="cbtn active" data-persp="beachhead">Beachhead</button>
+          <button class="cbtn" data-persp="tank_column">Column</button>
+        </div>
+        <div id="coopgate"></div>
         <div id="flegend">
           <span class="lg"><span class="sw" style="background:#6fa8ff;color:#6fa8ff"></span>FRIENDLY</span>
           <span class="lg"><span class="sw" style="background:#ff4d5e;color:#ff4d5e"></span>HOSTILE</span>

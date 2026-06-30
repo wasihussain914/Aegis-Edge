@@ -36,12 +36,12 @@ added smoke tests. Keep the dusk/command-center aesthetic. Map every task to its
       ("who shoots + why this weapon"), plain English (template now, Bedrock when creds). (DOD-11)
 
 ## Phase E — operator controls
-- [ ] E1. Operator-mode switch **Manual / Combined / Autonomous** wired to `resolveEngagement`;
+- [x] E1. Operator-mode switch **Manual / Combined / Autonomous** wired to `resolveEngagement`;
       the approval gate changes live; RF Zapper engagements require a human. (DOD-9, DOD-10, DOD-14)
-- [ ] E2. Comms toggle **Case 1 ↔ Case 2**; Case 2 drops the link intermittently → **stale/aging
+- [x] E2. Comms toggle **Case 1 ↔ Case 2**; Case 2 drops the link intermittently → **stale/aging
       tracks, delayed-or-failed handoff, fallback to self-protect**, with plain-English callouts. (DOD-12)
-- [ ] E3. **Perspective switch** Beachhead ↔ Tank Column air picture. (DOD-13)
-- [ ] E4. Every required human-approval point **pauses on a gate**; nothing fires past it. (DOD-14)
+- [x] E3. **Perspective switch** Beachhead ↔ Tank Column air picture. (DOD-13)
+- [x] E4. Every required human-approval point **pauses on a gate**; nothing fires past it. (DOD-14)
 
 ## Phase F — verify the whole checklist
 - [ ] F1. Add a coop scene/integration smoke test where feasible; walk all 14 DoD items; record
@@ -56,9 +56,9 @@ added smoke tests. Keep the dusk/command-center aesthetic. Map every task to its
 - [x] DOD-6 blue/red/green drones; ≥1 red drives an engagement
 - [x] DOD-7 ROE+position negotiation resolves an engagement (in log)
 - [x] DOD-8 shoot-and-shout; other unit stands down
-- [ ] DOD-9 RF needs human; SHORAD/SLAMRAAM human-or-machine per mode
-- [ ] DOD-10 Manual/Combined/Autonomous change the approver, live
+- [x] DOD-9 RF needs human; SHORAD/SLAMRAAM human-or-machine per mode
+- [x] DOD-10 Manual/Combined/Autonomous change the approver, live
 - [x] DOD-11 click → classification + engagement rationale, plain English
-- [ ] DOD-12 Case1↔Case2; Case2 shows stale/delayed/failed/fallback w/ callouts
-- [ ] DOD-13 perspective switch Beachhead ↔ Column
-- [ ] DOD-14 every human-approval point pauses on a gate; nothing auto-fires past
+- [x] DOD-12 Case1↔Case2; Case2 shows stale/delayed/failed/fallback w/ callouts
+- [x] DOD-13 perspective switch Beachhead ↔ Column
+- [x] DOD-14 every human-approval point pauses on a gate; nothing auto-fires past

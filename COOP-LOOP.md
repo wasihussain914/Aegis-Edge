@@ -8,16 +8,19 @@ Wasi 2026-06-30.** Spec: `.kiro/specs/coop-defense/`. Run until the DEFINITION O
 ## Each iteration
 1. `cd C:\Users\hussaisw\.openclaw\workspace\wolfberg\wolfberg-cuas-3d`; branch `main`; if
    `node_modules` missing run `npm install`. For live Bedrock load `. ..\..\.secrets\aws-workshop.ps1`.
-2. Read `.kiro/specs/coop-defense/tasks.md`. Pick the **first unchecked `[ ]` task** (Phase A→F).
-3. Implement just that one coherent change. **Architecture rules (preserve):** the deterministic
+2. Read `.kiro/specs/coop-defense/tasks.md`. Implement the **next COHERENT BATCH of unchecked
+   tasks — ideally a whole phase (2–4 tasks)** in this iteration, not just one. Only stop the batch
+   early if a task is genuinely blocked or the change is large/risky.
+3. Implement the batch. **Architecture rules (preserve):** the deterministic
    core (`src/coop/`, `src/model/`) makes ALL decisions — classification, ROE, who-shoots, gate;
    the LLM/Bedrock layer ONLY writes plain-English explanations and must degrade to templates.
    Keep the dusk/command-center aesthetic. Reuse `classify` for blue/red/green.
 4. **Verify: `npm run typecheck` AND `npm test` AND `npm run build` must ALL stay green.** For any
    new deterministic logic, ADD a test first (or alongside). If a change breaks a check, fix it
    this iteration before moving on.
-5. On green: check the task box, check any DoD items it satisfies, append a dated line to
-   `BUILD-LOG.md` (what + which DoD items + how verified), `git add` explicit paths, commit LOCALLY.
+5. On green: check ALL completed task boxes + their DoD items, append a dated line to
+   `BUILD-LOG.md` (what + which DoD items + how verified), `git add` explicit paths, commit LOCALLY
+   (one commit for the batch is fine).
 6. **Self-extend:** if a DoD item is only partially met, append a concrete follow-up task. Re-read
    `requirements.md` and verify against the 14 DoD items honestly.
 

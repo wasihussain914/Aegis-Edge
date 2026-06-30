@@ -18,9 +18,9 @@ import { classify, explainTemplate, type Classification } from "./model/threatCa
 import { fetchNarration } from "./narrate.js";
 import { MARINE_BEACHHEAD, tankColumnAt, columnPositionAt, COOP_TRACKS, coopLinkUpAt } from "./data/coopScenario.js";
 import { unitCoverages } from "./coop/coverage.js";
-import { unitSees, airPicture, labelUnit } from "./coop/coordination.js";
+import { unitSees, airPicture, labelUnit, labelWeapon, approvalGate, commsHealth } from "./coop/coordination.js";
 import { planEngagements, engagementRationale } from "./coop/engagement.js";
-import type { Unit, Track, Faction, OperatorMode } from "./coop/types.js";
+import type { Unit, Track, Faction, OperatorMode, CommsCase, UnitId } from "./coop/types.js";
 
 const THREAT_COLOR: Record<string, number> = { HIGH: 0xff4d5e, MED: 0xffc14d, LOW: 0x5dd6a0, NONE: 0x6fa8ff };
 
@@ -501,16 +501,30 @@ for (const ui of [0, 1] as const) for (const d of coopDrones) {
 }
 const link16El = document.getElementById("link16")!;
 const airpicEl = document.getElementById("airpic")!;
+const coopPerspEl = document.getElementById("coopersp")!;
 let linkWasUp = false;
+// E2/DOD-12 comms degradation: when the link last carried, and the per-unit fused pictures it held,
+// so a Case-2 drop can render those tracks as STALE/aging before the handoff FAILS to self-protect.
+let lastLinkUpSec = 0;
+let prevHandoff: "LIVE" | "DELAYED" | "FAILED" = "LIVE";
+const lastLinkPic: [Set<string>, Set<string>] = [new Set(), new Set()];
 
-// --- Phase D: engagement loop, shoot-and-shout, event/negotiation log (DOD-6/7/8) ---
-// The deterministic core (coop/engagement.planEngagements) resolves every hostile each tick; we only
-// render its outcomes — a running event log, a fire tracer from shooter→target, and the "ENGAGED"
-// ring + stand-down callout. The operator mode is fixed here in Phase D (the live switch is Phase E);
-// autonomous lets a missile clear so a cooperative engagement actually plays out on screen, while the
-// RF-Zapper hostile HOLDs for a human — the contrast that motivates the Phase-E controls.
+// --- Phase D/E: engagement loop, shoot-and-shout, event/negotiation log + live operator controls ---
+// The deterministic core (coop/engagement.planEngagements + coordination.approvalGate/commsHealth)
+// resolves every hostile each tick and decides the approval gate; we only render its outcomes — a
+// running event log, a fire tracer from shooter→target, the "ENGAGED" ring, and (Phase E) a live
+// MODE / COMMS / VIEW-AS control set. Defaults: Autonomous + Case 1 + Beachhead perspective, so a
+// missile clears and the cooperative engagement plays out; switching to Manual/Combined pauses every
+// fire on a human gate (DOD-9/10/14), and Case 2 degrades the link (DOD-12).
 let operatorMode: OperatorMode = "autonomous";
+let commsCase: CommsCase = "persistent";    // Case 1 (persistent) ↔ Case 2 (intermittent) — E2/DOD-12
+let perspective: UnitId = "beachhead";      // whose air picture is highlighted — E3/DOD-13
 const engaged = new Set<string>();          // shoot-and-shout: tracks already fired on (persists across ticks)
+// E1/E4: pending human-approval gates — a hostile that needs human approval pauses here; nothing
+// fires until `granted` reaches `needed`. DENY drops it into `deniedGates` so it never auto-re-arms.
+interface PendingGate { track: Track; shooter: UnitId; weapon: string; needed: number; granted: number; }
+const pendingGates = new Map<string, PendingGate>();
+const deniedGates = new Set<string>();
 const coopLogEl = document.getElementById("cooplog")!;
 const coopLog: string[] = [];               // newest first; capped for the HUD
 function logEvent(line: string, tick: number): void {
@@ -534,6 +548,64 @@ function spawnTracer(from: THREE.Vector3, to: THREE.Vector3): void {
   line.frustumCulled = false; scene.add(line);
   tracers.push({ line, pos, ttl: 1 });
 }
+
+// --- Phase E operator controls (E1 mode / E2 comms / E3 perspective) + the E4 approval gate UI ---
+// All three switches flip a single deterministic-core input live; the core re-decides next tick.
+const coopGateEl = document.getElementById("coopgate")!;
+const modeBtns = Array.from(document.querySelectorAll<HTMLButtonElement>("#modeCtl .cbtn"));
+const commsBtns = Array.from(document.querySelectorAll<HTMLButtonElement>("#commsCtl .cbtn"));
+const perspBtns = Array.from(document.querySelectorAll<HTMLButtonElement>("#perspCtl .cbtn"));
+
+/** Fire a gated engagement once its human approvals are in: tracer + ENGAGED ring + stand-down. */
+function fireGate(g: PendingGate): void {
+  const sIdx = g.shooter === "beachhead" ? 0 : 1;
+  const sp = coopUnits[sIdx].group.position;
+  const dp = coopDrones.find((d) => d.track.id === g.track.id)?.group.position;
+  if (dp) spawnTracer(new THREE.Vector3(sp.x, 14, sp.z), dp.clone());
+  engaged.add(g.track.id);                                 // shoot-and-shout: other unit stands down
+  const other = g.shooter === "beachhead" ? "tank_column" : "beachhead";
+  logEvent(`${labelUnit(g.shooter)} ENGAGES ${g.track.id} with ${g.weapon} — human-approved; ${labelUnit(other)} stands down.`, clock.elapsedTime);
+}
+
+/** Re-render the pending approval gates (E4): nothing fires until every gate is granted or denied. */
+function renderGates(): void {
+  coopGateEl.innerHTML = [...pendingGates.values()].map((g) =>
+    `<div class="gate">⚠ APPROVAL REQUIRED · ${g.track.id} — ${labelUnit(g.shooter)} ${g.weapon}` +
+    ` · ${g.granted}/${g.needed} approved` +
+    `<div class="gbtns"><button class="appr" data-appr="${g.track.id}">APPROVE</button>` +
+    `<button class="deny" data-deny="${g.track.id}">DENY</button></div></div>`).join("");
+  for (const b of coopGateEl.querySelectorAll<HTMLButtonElement>("button.appr"))
+    b.onclick = () => { const g = pendingGates.get(b.dataset.appr!); if (!g) return;
+      g.granted++; if (g.granted >= g.needed) { fireGate(g); pendingGates.delete(g.track.id); } renderGates(); };
+  for (const b of coopGateEl.querySelectorAll<HTMLButtonElement>("button.deny"))
+    b.onclick = () => { const id = b.dataset.deny!; pendingGates.delete(id); deniedGates.add(id);
+      logEvent(`${id}: engagement DENIED by operator — held, not fired.`, clock.elapsedTime); renderGates(); };
+}
+
+/** Switching mode re-decides the approver live (DOD-10): clear stale gates + status so the next tick
+ *  re-evaluates every hostile under the new mode (a missile pending in Manual auto-fires in Autonomous). */
+function setMode(m: OperatorMode): void {
+  if (m === operatorMode) return;
+  operatorMode = m;
+  pendingGates.clear(); deniedGates.clear(); loggedStatus.clear(); renderGates();
+  for (const b of modeBtns) b.classList.toggle("active", b.dataset.mode === m);
+  logEvent(`OPERATOR MODE → ${m.toUpperCase()} — approval authority updated.`, clock.elapsedTime);
+}
+function setComms(c: CommsCase): void {
+  if (c === commsCase) return;
+  commsCase = c;
+  for (const b of commsBtns) b.classList.toggle("active", b.dataset.comms === c);
+  logEvent(c === "intermittent"
+    ? "COMMS → CASE 2 (intermittent) — link will drop; expect stale tracks + degraded handoff."
+    : "COMMS → CASE 1 (persistent) — link steady; full fusion.", clock.elapsedTime);
+}
+function setPerspective(u: UnitId): void {
+  perspective = u;
+  for (const b of perspBtns) b.classList.toggle("active", b.dataset.persp === u);
+}
+for (const b of modeBtns) b.onclick = () => setMode(b.dataset.mode as OperatorMode);
+for (const b of commsBtns) b.onclick = () => setComms(b.dataset.comms as CommsCase);
+for (const b of perspBtns) b.onclick = () => setPerspective(b.dataset.persp as UnitId);
 
 // --- drones ---
 interface Live {
@@ -762,7 +834,7 @@ function selectCoopDrone(d: CoopDroneView): void {
   selected = null; overlay.style.display = "none";   // coop panel has no leader line
   const t = d.track;
   const colNow = tankColumnAt(clock.elapsedTime, 1);
-  const linkNow = coopLinkUpAt(clock.elapsedTime, "persistent", 1);
+  const linkNow = coopLinkUpAt(clock.elapsedTime, commsCase, 1);
   const eng = engagementRationale(t, [MARINE_BEACHHEAD, colNow], linkNow, operatorMode, engaged);
   const fcol = "#" + (FACTION_COLOR[t.faction] & 0xffffff).toString(16).padStart(6, "0");
   panel.innerHTML =
@@ -1033,7 +1105,9 @@ function animate() {
   const beachUnit = MARINE_BEACHHEAD;
   const colUnit = tankColumnAt(clock.elapsedTime, 1);
   const coopUnitObjs: [Unit, Unit] = [beachUnit, colUnit];
-  const link = coopLinkUpAt(clock.elapsedTime, "persistent", 1);
+  const link = coopLinkUpAt(clock.elapsedTime, commsCase, 1);
+  if (link) lastLinkUpSec = clock.elapsedTime;
+  const health = commsHealth(link, clock.elapsedTime, lastLinkUpSec); // DOD-12 LIVE/DELAYED/FAILED
   // idle life for the coop drones: spin rotors + a gentle altitude bob (deterministic per-track phase)
   for (const d of coopDrones) {
     for (const r of d.rotors) r.rotation.y += dt * 30;
@@ -1049,10 +1123,19 @@ function animate() {
     if (link) { lm.color.setHex(LINK_UP_COLOR); lm.opacity = 0.55 + 0.25 * ((Math.sin(clock.elapsedTime * 4) + 1) / 2); }
     else { lm.color.setHex(LINK_DOWN_COLOR); lm.opacity = 0.18; }
     const gap = Math.round(Math.hypot(a.x - b.x, a.z - b.z));
-    link16El.textContent = link
-      ? `LINK-16 · ✓ ESTABLISHED · ${gap}m · pictures fused`
-      : `LINK-16 · ⌛ acquiring… Column ${gap}m out (link ≤600m)`;
-    link16El.style.color = link ? "#7df0b8" : "#c9a14d";
+    const inRange = gap <= 600;
+    if (link) {
+      link16El.textContent = `LINK-16 · ✓ ESTABLISHED · ${gap}m · pictures fused`;
+      link16El.style.color = "#7df0b8";
+    } else if (inRange) {                 // in range but comms dropped → Case-2 degradation (DOD-12)
+      link16El.textContent = health.handoff === "FAILED"
+        ? `LINK-16 · ✗ FAILED · handoff lost ${Math.floor(health.staleSec)}s — self-protect`
+        : `LINK-16 · ⚠ DELAYED · comms drop, tracks aging ${Math.floor(health.staleSec)}s`;
+      link16El.style.color = health.handoff === "FAILED" ? "#ff8a94" : "#ffc14d";
+    } else {
+      link16El.textContent = `LINK-16 · ⌛ acquiring… Column ${gap}m out (link ≤600m)`;
+      link16El.style.color = "#c9a14d";
+    }
   }
   // Per-unit air pictures from the core; a picture line is drawn from a unit to each track it holds.
   const bPic = new Set(airPicture(beachUnit, colUnit, COOP_TRACKS, link).map((t) => t.id));
@@ -1060,13 +1143,21 @@ function animate() {
   for (const pl of picLines) {
     const unitObj = coopUnitObjs[pl.unitIdx];
     const pic = pl.unitIdx === 0 ? bPic : cPic;
-    const holds = pic.has(pl.drone.track.id);
+    const id = pl.drone.track.id;
+    const holds = pic.has(id);
     // a track held by a unit ONLY because the link fused it (the unit can't see it itself) draws in
     // the fusion tint — that's the visible "single-unit track became shared" moment (DOD-5).
     const fused = holds && !unitSees(unitObj, pl.drone.track);
-    const target = holds ? (fused ? 0.5 : 0.28) : 0;
+    // DOD-12: a track this unit held over the link last time it was up, now dropped by a Case-2
+    // outage but still inside the DELAYED window → render STALE (aging amber) instead of vanishing.
+    const stale = !holds && health.handoff === "DELAYED"
+      && lastLinkPic[pl.unitIdx].has(id) && !unitSees(unitObj, pl.drone.track);
+    const perspDim = unitObj.id === perspective ? 1 : 0.4;   // E3: dim the non-selected perspective
+    let target = 0;
+    if (holds) target = (fused ? 0.5 : 0.28) * perspDim;
+    else if (stale) target = (0.32 + 0.16 * Math.sin(clock.elapsedTime * 6)) * perspDim; // blink = aging
     pl.op += (target - pl.op) * Math.min(1, dt * 5);
-    if (pl.op < 0.01 && !holds) pl.op = 0;
+    if (pl.op < 0.01 && !holds && !stale) pl.op = 0;
     pl.line.visible = pl.op > 0.01;
     if (pl.line.visible) {
       const up = coopUnits[pl.unitIdx].group.position, dp = pl.drone.group.position;
@@ -1074,19 +1165,35 @@ function animate() {
       pl.pos[3] = dp.x; pl.pos[4] = dp.y; pl.pos[5] = dp.z;
       (pl.line.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
       const m = pl.line.material as THREE.LineBasicMaterial;
-      m.color.setHex(fused ? FUSE_COLOR : FACTION_COLOR[pl.drone.track.faction]);
+      m.color.setHex(stale ? 0xc9a14d : fused ? FUSE_COLOR : FACTION_COLOR[pl.drone.track.faction]);
       m.opacity = pl.op;
     }
   }
+  if (link) { lastLinkPic[0] = new Set(bPic); lastLinkPic[1] = new Set(cPic); } // for Case-2 staleness
   airpicEl.textContent = `AIR PICTURE · Beachhead ${bPic.size} · Column ${cPic.size}` +
     (link && cPic.size > 0 ? ` · ${[...bPic].filter((id) => cPic.has(id)).length} shared` : "");
   if (link && !linkWasUp) airpicEl.style.color = "#9fe8ff"; // flash the fusion moment
   else if (!link) airpicEl.style.color = "#6f87ad";
+  // E3/DOD-13: perspective readout — the selected unit's own picture (organic vs link-fused split).
+  {
+    const selfUnit = perspective === "beachhead" ? beachUnit : colUnit;
+    const otherUnit = perspective === "beachhead" ? colUnit : beachUnit;
+    const pic = airPicture(selfUnit, otherUnit, COOP_TRACKS, link);
+    const organic = pic.filter((t) => unitSees(selfUnit, t)).length;
+    const viaLink = pic.length - organic;
+    coopPerspEl.textContent = `PERSPECTIVE · ${labelUnit(perspective)} · ${pic.length} tracks` +
+      ` (${organic} organic${viaLink ? ` · ${viaLink} via Link-16` : ""})`;
+  }
 
-  // --- Phase D engagement step (DOD-6/7/8): the core resolves every hostile; we log + render it ---
-  // 1) link up/down transition → one log line
-  if (link !== linkWasUp) {
-    logEvent(link ? "LINK-16 ESTABLISHED — air pictures fused." : "LINK-16 DROPPED — units revert to self-protect.", clock.elapsedTime);
+  // --- Phase D/E engagement step (DOD-6/7/8/9/10/12/14): core resolves; we log + render + gate it ---
+  // 1) link + handoff transitions → one plain-English callout each (DOD-4 link, DOD-12 degradation)
+  if (link !== linkWasUp)
+    logEvent(link ? "LINK-16 ESTABLISHED — air pictures fused." : "LINK-16 dropped.", clock.elapsedTime);
+  if (health.handoff !== prevHandoff) {
+    if (health.handoff === "DELAYED") logEvent("CASE 2: comms outage — cross-unit handoff DELAYED, shared tracks aging.", clock.elapsedTime);
+    else if (health.handoff === "FAILED") logEvent("CASE 2: handoff FAILED — fallback to SELF-PROTECT (organic sensors only).", clock.elapsedTime);
+    else if (prevHandoff !== "LIVE") logEvent("CASE 2: link restored — pictures re-fused.", clock.elapsedTime);
+    prevHandoff = health.handoff;
   }
   // 2) new hostile detections per unit (entering a unit's picture) → one log line each
   for (let ui = 0 as 0 | 1; ui < 2; ui++) {
@@ -1097,13 +1204,15 @@ function animate() {
     }
     seenByUnit[ui] = new Set(pic);
   }
-  // 3) resolve engagements deterministically; log status CHANGES; fire a tracer on the firing tick
+  // 3) resolve engagements deterministically; log status CHANGES; AUTO-fire only when machine-
+  //    authorized (Autonomous + missile). Anything needing a human PAUSES on a gate (DOD-9/10/14).
   const plan = planEngagements(COOP_TRACKS, coopUnitObjs, link, operatorMode, engaged);
+  const needGateNow = new Set<string>();
   for (const o of plan.outcomes) {
     const prev = loggedStatus.get(o.track.id);
     if (o.status !== "NONE" && o.status !== prev) {
       logEvent(o.logLine, clock.elapsedTime);
-      if (o.fired) {
+      if (o.fired) {                                   // Autonomous machine-authorized fire (no human)
         const sIdx = o.decision.shooter === coopUnitObjs[0].id ? 0 : 1;
         const sp = coopUnits[sIdx].group.position;
         const dp = coopDrones.find((d) => d.track.id === o.track.id)!.group.position;
@@ -1111,8 +1220,24 @@ function animate() {
       }
     }
     loggedStatus.set(o.track.id, o.status);
+    // E4/DOD-14: a fire that needs human approval PAUSES on a gate and fires nothing until granted.
+    const gate = approvalGate(o.decision, operatorMode);
+    if (gate.needed > 0 && o.decision.shooter && o.decision.weapon && !engaged.has(o.track.id)) {
+      needGateNow.add(o.track.id);
+      if (!deniedGates.has(o.track.id) && !pendingGates.has(o.track.id)) {
+        pendingGates.set(o.track.id, {
+          track: o.track, shooter: o.decision.shooter, weapon: labelWeapon(o.decision.weapon),
+          needed: gate.needed, granted: 0,
+        });
+        renderGates();
+      }
+    }
   }
-  for (const id of plan.engaged) engaged.add(id);  // shoot-and-shout persists across ticks
+  for (const id of plan.engaged) engaged.add(id);  // shoot-and-shout persists across ticks (auto fires)
+  // prune gates no longer applicable this tick (link dropped, target engaged, mode changed)
+  let prunedGate = false;
+  for (const id of [...pendingGates.keys()]) if (!needGateNow.has(id)) { pendingGates.delete(id); prunedGate = true; }
+  if (prunedGate) renderGates();
   // 4) render: ENGAGED ring on fired hostiles + fade out the fire tracers
   for (const d of coopDrones) {
     const ringMat = d.ring.material as THREE.MeshBasicMaterial;

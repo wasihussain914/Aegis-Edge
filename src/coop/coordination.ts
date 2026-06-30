@@ -5,7 +5,8 @@
  */
 import {
   type Unit, type Track, type WeaponType, type UnitId, type OperatorMode, type CommsCase,
-  type EngagementDecision, WEAPON_COST, WEAPON_REQUIRES_HUMAN, MODE_SEATS,
+  type EngagementDecision, type ApprovalGate, type CommsHealth,
+  WEAPON_COST, WEAPON_REQUIRES_HUMAN, MODE_SEATS,
 } from "./types.js";
 
 const dist = (a: { x: number; z: number }, b: { x: number; z: number }) => Math.hypot(a.x - b.x, a.z - b.z);
@@ -105,6 +106,33 @@ export function resolveEngagement(
     trackId: track.id, shooter: pick.shooter, weapon: pick.weapon, requiresHuman, approved,
     rationale: `${labelUnit(pick.shooter)} engages ${track.id} with the ${labelWeapon(pick.weapon)} — cheapest in-range effector by ROE.${requiresHuman ? " Requires human approval." : ""}`,
   };
+}
+
+/**
+ * The live approval gate for a resolved engagement under an operator mode (DOD-9/10/14). Human
+ * seats per mode: Manual 2, Combined 1, Autonomous 0. A missile with no human seat auto-fires
+ * (machine-authorized); the RF Zapper always needs a human, so it is BLOCKED when the mode has no
+ * human seat. Otherwise the engagement PAUSES on a gate until `needed` human approvals are granted —
+ * nothing auto-fires past it. Changing the mode changes `needed` (the approver) live (DOD-10).
+ */
+export function approvalGate(d: EngagementDecision, mode: OperatorMode): ApprovalGate {
+  const humanSeats = MODE_SEATS[mode].filter((s) => s === "human").length;
+  if (!d.shooter || !d.weapon) return { trackId: d.trackId, needed: 0, autoFire: false, blocked: false };
+  if (d.requiresHuman && humanSeats === 0) return { trackId: d.trackId, needed: 0, autoFire: false, blocked: true };
+  if (humanSeats === 0) return { trackId: d.trackId, needed: 0, autoFire: true, blocked: false };
+  return { trackId: d.trackId, needed: humanSeats, autoFire: false, blocked: false };
+}
+
+/**
+ * Comms/link health for Case-2 degradation (DOD-12). While the link is up the handoff is LIVE; when
+ * it drops the cross-unit tracks go stale and age (DELAYED), and once the staleness passes
+ * `failAfterSec` the handoff has FAILED and the unit falls back to self-protect. Pure: derived only
+ * from the current link state and how long since it was last up.
+ */
+export function commsHealth(linkNow: boolean, nowSec: number, lastUpSec: number, failAfterSec = 4): CommsHealth {
+  if (linkNow) return { linkNow, staleSec: 0, handoff: "LIVE" };
+  const staleSec = Math.max(0, nowSec - lastUpSec);
+  return { linkNow, staleSec, handoff: staleSec >= failAfterSec ? "FAILED" : "DELAYED" };
 }
 
 export function labelUnit(id: UnitId): string {

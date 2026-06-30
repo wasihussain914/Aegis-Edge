@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   unitSees, airPicture, linkUp, commsAvailable, selectShooter, resolveEngagement, hasHumanSeat,
+  approvalGate, commsHealth,
 } from "./coordination.js";
 import type { Unit, Track } from "./types.js";
 
@@ -85,6 +86,34 @@ test("DOD-12: comms — persistent always up, intermittent ~70%", () => {
   for (let i = 0; i < N; i++) if (commsAvailable("intermittent", i)) up++;
   const frac = up / N;
   assert.ok(frac > 0.6 && frac < 0.8, `intermittent availability ${frac}`);
+});
+
+test("DOD-9/10/14: approvalGate — missiles auto/gate per mode; RF needs a human", () => {
+  const missile = selectShooter(T_mid, [beachhead, column], true, new Set()); // SLAMRAAM (no human)
+  const rf = selectShooter(T_close, [beachhead, column], true, new Set());    // RF Zapper (needs human)
+  // Missile: Autonomous fires with no human; Combined needs 1; Manual needs 2 — the approver changes.
+  assert.deepEqual(approvalGate(resolveEngagement(T_mid, missile, "autonomous"), "autonomous"),
+    { trackId: "T_mid", needed: 0, autoFire: true, blocked: false });
+  assert.equal(approvalGate(resolveEngagement(T_mid, missile, "combined"), "combined").needed, 1);
+  assert.equal(approvalGate(resolveEngagement(T_mid, missile, "manual"), "manual").needed, 2);
+  // RF Zapper: blocked in Autonomous (no human seat); gates on 1 human in Combined, 2 in Manual.
+  assert.deepEqual(approvalGate(resolveEngagement(T_close, rf, "autonomous"), "autonomous"),
+    { trackId: "T_close", needed: 0, autoFire: false, blocked: true });
+  assert.equal(approvalGate(resolveEngagement(T_close, rf, "combined"), "combined").needed, 1);
+  const man = approvalGate(resolveEngagement(T_close, rf, "manual"), "manual");
+  assert.equal(man.needed, 2);
+  assert.equal(man.autoFire, false);
+  // No eligible shooter → nothing to gate (and nothing auto-fires).
+  const none = approvalGate(resolveEngagement(T_far, null, "manual"), "manual");
+  assert.deepEqual(none, { trackId: "T_far", needed: 0, autoFire: false, blocked: false });
+});
+
+test("DOD-12: commsHealth — LIVE up, DELAYED on a brief drop, FAILED past threshold", () => {
+  assert.deepEqual(commsHealth(true, 10, 7), { linkNow: true, staleSec: 0, handoff: "LIVE" });
+  const delayed = commsHealth(false, 9, 7, 4);  // 2s stale < 4s threshold
+  assert.equal(delayed.handoff, "DELAYED");
+  assert.equal(delayed.staleSec, 2);
+  assert.equal(commsHealth(false, 12, 7, 4).handoff, "FAILED"); // 5s stale ≥ 4s → self-protect
 });
 
 test("link establishes only within range and when comms is available", () => {

@@ -301,3 +301,25 @@ Newest at the bottom. One line per iteration: date/time, task, how verified.
   (dist 581.77 kB; pre-existing three.js chunk-size warning only). Single-site demo + its tests
   untouched; LLM off every decision. Next: Phase E (E1 operator-mode switch, E2 comms Case1↔Case2,
   E3 perspective switch, E4 gate pause) → DOD-9/10/12/13/14.
+- 2026-06-30 14:4x CDT — Phase E done (E1+E2+E3+E4) (Chopper): live operator controls + approval
+  gate. **Deterministic core (new, tested)** `src/coop/coordination.ts`: `approvalGate(decision,
+  mode)` returns the live gate — `needed` human approvals (Manual 2 / Combined 1 / Autonomous 0),
+  `autoFire` (machine-authorized: Autonomous + missile), `blocked` (RF Zapper with no human seat);
+  and `commsHealth(linkNow, nowSec, lastUpSec, failAfterSec=4)` → LIVE / DELAYED (brief drop, tracks
+  aging) / FAILED (past threshold → self-protect). New `ApprovalGate` + `CommsHealth` types. **2 new
+  tests** (`coordination.test.ts`, 34 total): DOD-9/10/14 — missiles auto-fire in Autonomous, gate
+  on 1 in Combined / 2 in Manual (the approver changes live); RF Zapper BLOCKED in Autonomous, gates
+  on a human in Combined/Manual; no-shooter → nothing to gate. DOD-12 — commsHealth LIVE up, DELAYED
+  on a 2s drop, FAILED at 5s ≥ 4s threshold. **Render (additive)** `src/main.ts`: a live MODE
+  (Manual/Combined/Autonomous) / COMMS (Case 1 ↔ Case 2) / VIEW-AS (Beachhead ↔ Column) control set;
+  switching mode clears stale gates so the next tick re-decides under the new approver (DOD-10);
+  E4 approval gates (#coopgate) — a fire needing human approval PAUSES with APPROVE/DENY, fires only
+  once `granted` reaches `needed` (nothing auto-fires past a gate, DOD-14); RF Zapper requires a
+  human (DOD-9). Case 2 drops the link → picture lines this unit held over the link render STALE
+  (aging amber, blinking) before the handoff FAILS to self-protect, with plain-English log callouts
+  (DELAYED / FAILED / restored) (DOD-12). VIEW-AS switches the perspective readout + dims the
+  non-selected unit's picture lines (DOD-13). `index.html`: #modeCtl / #commsCtl / #perspCtl +
+  #coopgate blocks + CSS. **DoD checked: DOD-9, DOD-10, DOD-12, DOD-13, DOD-14** (E1–E4 boxes too).
+  Verified: `npm run typecheck` clean, `npm test` 34/34 pass (2 new), `npm run build` green
+  (dist 585.91 kB; pre-existing three.js chunk-size warning only). Single-site demo + its tests
+  untouched; LLM off every decision. Next: Phase F (F1 coop integration smoke test, walk all 14 DoD).

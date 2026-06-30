@@ -58,3 +58,25 @@ export interface EngagementDecision {
   blockedReason?: string;     // e.g. "RF Zapper needs a human; Autonomous mode has none"
   rationale: string;          // plain-English-able summary (template; LLM may rewrite)
 }
+
+/**
+ * The live approval gate for a resolved engagement under an operator mode (DOD-9/10/14).
+ * `needed` human approvals must be granted before it fires unless `autoFire` (machine-authorized).
+ * `blocked` means it cannot fire in this mode at all (RF Zapper with no human seat).
+ */
+export interface ApprovalGate {
+  trackId: string;
+  needed: number;     // human approvals required before this engagement may fire
+  autoFire: boolean;  // machine-authorized; fires with no human (Autonomous + missile)
+  blocked: boolean;   // cannot fire in this mode at all (RF Zapper, no human seat)
+}
+
+/**
+ * Comms/link health for Case-2 degradation (DOD-12). When the link drops, cross-unit tracks go
+ * stale and age; past the fail threshold the handoff has FAILED and the unit falls back to self-protect.
+ */
+export interface CommsHealth {
+  linkNow: boolean;
+  staleSec: number;                       // seconds since the link was last up (0 if up now)
+  handoff: "LIVE" | "DELAYED" | "FAILED"; // LIVE up; DELAYED brief drop; FAILED → self-protect
+}
