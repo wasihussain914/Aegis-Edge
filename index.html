@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Aegis-Edge — Counter-UAS 3D</title>
+    <style>
+      :root { color-scheme: dark; }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body, #app { width: 100%; height: 100%; overflow: hidden; background: #06080d; }
+      body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+      #hud {
+        position: fixed; top: 16px; left: 16px; z-index: 10; color: #cfe3ff;
+        background: rgba(10,16,28,.72); border: 1px solid rgba(80,140,220,.25);
+        border-radius: 10px; padding: 12px 14px; backdrop-filter: blur(6px); max-width: 320px;
+      }
+      #hud h1 { font-size: 14px; letter-spacing: .12em; color: #8fb6ff; font-weight: 700; }
+      #hud .sub { font-size: 11px; color: #6f87ad; margin-top: 2px; }
+      #panel {
+        position: fixed; top: 16px; right: 16px; z-index: 10; width: 340px; color: #d7e6ff;
+        background: rgba(10,16,28,.72); border: 1px solid rgba(80,140,220,.25);
+        border-radius: 10px; padding: 14px; backdrop-filter: blur(6px); display: none;
+      }
+      #panel.show { display: block; }
+      #panel .tag { display:inline-block; font-size:10px; letter-spacing:.1em; padding:2px 8px; border-radius:999px; }
+      .threat-HIGH { background:#3a0d12; color:#ff6b78; border:1px solid #ff6b78; }
+      .threat-MED  { background:#3a2a0d; color:#ffc14d; border:1px solid #ffc14d; }
+      .threat-LOW  { background:#0d2a1f; color:#5dd6a0; border:1px solid #5dd6a0; }
+      .threat-NONE { background:#1a2233; color:#8fb6ff; border:1px solid #4a6da8; }
+      #panel h2 { font-size: 15px; margin: 8px 0 4px; }
+      #panel .why { font-size: 12.5px; line-height: 1.5; color: #b9cbe6; margin-top: 8px; }
+      #panel .row { font-size: 12px; color:#8aa3c7; margin-top:6px; display:flex; justify-content:space-between; }
+      #hint { position: fixed; bottom: 14px; left: 16px; z-index: 10; font-size: 11px; color: #5f7799; }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <div id="hud">
+      <h1>AEGIS-EDGE</h1>
+      <div class="sub">Counter-UAS · 1 km² · explainable threat-call at the edge</div>
+      <div class="sub" id="clock" style="margin-top:6px;"></div>
+    </div>
+    <div id="panel"></div>
+    <div id="hint">drag to orbit · scroll to zoom · click a track for the AI threat-call</div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
