@@ -16,7 +16,7 @@ import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { buildings, sensors, tracks, SITE, type DroneTrack, type SensorSite } from "./data/scenario.js";
 import { classify, explainTemplate, type Classification } from "./model/threatCall.js";
 import { fetchNarration } from "./narrate.js";
-import { MARINE_BEACHHEAD, tankColumnAt, columnPositionAt, COOP_TRACKS, coopLinkUpAt } from "./data/coopScenario.js";
+import { MARINE_BEACHHEAD, tankColumnAt, columnPositionAt, COOP_TRACKS, coopLinkUpAt, PENETRATOR_ID, penetratorPositionAt } from "./data/coopScenario.js";
 import { unitCoverages } from "./coop/coverage.js";
 import { unitSees, airPicture, labelUnit, labelWeapon, approvalGate, commsHealth } from "./coop/coordination.js";
 import { planEngagements, engagementRationale } from "./coop/engagement.js";
@@ -455,17 +455,21 @@ const coopUnits: CoopUnitView[] = [];
 const FACTION_COLOR: Record<Faction, number> = { friendly: 0x6fa8ff, hostile: 0xff4d5e, neutral: 0x5dd6a0 };
 const FACTION_LABEL: Record<Faction, string> = { friendly: "FRIENDLY", hostile: "HOSTILE", neutral: "NEUTRAL" };
 const COOP_DRONE_ALT = 95;
+const UNKNOWN_COLOR = 0x9aa7b2; // grey — a track not yet classified
 interface CoopDroneView {
   track: Track; group: THREE.Group; body: THREE.Mesh; rotors: THREE.Object3D[]; phase: number;
   ring: THREE.Mesh;       // D2: "ENGAGED" ground ring, lit once a hostile is fired on
+  label: THREE.Sprite; detected: boolean; dead: boolean;  // detect→classify→destroy arc
 }
 const coopDrones: CoopDroneView[] = [];
 for (const t of COOP_TRACKS) {
-  const color = FACTION_COLOR[t.faction];
+  // The penetrator starts UNCLASSIFIED (grey/UNKNOWN) and is classified HOSTILE on detection.
+  const pen = t.id === PENETRATOR_ID;
+  const color = pen ? UNKNOWN_COLOR : FACTION_COLOR[t.faction];
   const parts = makeDrone(color);
   parts.group.position.set(t.pos.x, COOP_DRONE_ALT, t.pos.z);
   scene.add(parts.group);
-  const label = makeLabel(`${t.id} · ${FACTION_LABEL[t.faction]}`, color);
+  const label = makeLabel(`${t.id} · ${pen ? "UNKNOWN" : FACTION_LABEL[t.faction]}`, color);
   label.position.set(t.pos.x, COOP_DRONE_ALT + 16, t.pos.z); scene.add(label);
   // D2: a flat ground ring under each hostile that lights when it has been engaged (shoot-and-shout)
   const ring = new THREE.Mesh(
@@ -474,7 +478,16 @@ for (const t of COOP_TRACKS) {
   );
   ring.rotation.x = -Math.PI / 2; ring.frustumCulled = false; scene.add(ring);
   const phase = ([...t.id].reduce((a, c) => a + c.charCodeAt(0), 0) % 360) * (Math.PI / 180);
-  coopDrones.push({ track: t, group: parts.group, body: parts.body, rotors: parts.rotors, phase, ring });
+  coopDrones.push({ track: t, group: parts.group, body: parts.body, rotors: parts.rotors, phase, ring, label, detected: !pen, dead: false });
+}
+
+/** Swap a coop drone's floating label (text + color) — used when a track is classified. */
+function reLabel(d: CoopDroneView, text: string, colorHex: number): void {
+  scene.remove(d.label);
+  const lab = makeLabel(text, colorHex);
+  lab.position.copy(d.label.position);
+  scene.add(lab);
+  d.label = lab;
 }
 
 // --- Link-16 + fusion (C1/C2, DOD-3/4/5) ---
@@ -1111,6 +1124,13 @@ function animate() {
   // idle life for the coop drones: spin rotors + a gentle altitude bob (deterministic per-track phase)
   for (const d of coopDrones) {
     for (const r of d.rotors) r.rotation.y += dt * 30;
+    if (d.dead) { d.group.visible = false; d.label.visible = false; continue; }
+    if (d.track.id === PENETRATOR_ID) {        // penetrator flies in from far toward the asset
+      const np = penetratorPositionAt(clock.elapsedTime, 1);
+      d.track.pos.x = np.x; d.track.pos.z = np.z;
+      d.group.position.x = np.x; d.group.position.z = np.z;
+      d.label.position.set(np.x, COOP_DRONE_ALT + 16, np.z);
+    }
     d.group.position.y = COOP_DRONE_ALT + Math.sin(clock.elapsedTime * 1.3 + d.phase) * 3;
   }
   // Link-16 line between the two units; color/opacity reflect link state; status text in the HUD.
@@ -1240,8 +1260,22 @@ function animate() {
   if (prunedGate) renderGates();
   // 4) render: ENGAGED ring on fired hostiles + fade out the fire tracers
   for (const d of coopDrones) {
+    // detect → classify on approach (a unit's sensor acquires it: out-of-range → in-range)
+    if (!d.detected && (unitSees(beachUnit, d.track) || unitSees(colUnit, d.track))) {
+      d.detected = true;
+      const det = unitSees(beachUnit, d.track) ? beachUnit : colUnit;
+      const bm = d.body.material as THREE.MeshStandardMaterial;
+      bm.color.setHex(FACTION_COLOR.hostile); bm.emissive.setHex(FACTION_COLOR.hostile);
+      reLabel(d, `${d.track.id} · HOSTILE`, FACTION_COLOR.hostile);
+      logEvent(`${labelUnit(det.id)} acquires ${d.track.id} on approach — classified HOSTILE (drone).`, clock.elapsedTime);
+    }
+    // destroy on engagement (human-approved OR autonomous machine fire — both land in `engaged`)
+    if (engaged.has(d.track.id) && !d.dead) {
+      d.dead = true;
+      logEvent(`${d.track.id} DESTROYED — effector hit confirmed; track removed.`, clock.elapsedTime);
+    }
     const ringMat = d.ring.material as THREE.MeshBasicMaterial;
-    const target = engaged.has(d.track.id) ? 0.45 + 0.3 * ((Math.sin(clock.elapsedTime * 5) + 1) / 2) : 0;
+    const target = engaged.has(d.track.id) && !d.dead ? 0.45 + 0.3 * ((Math.sin(clock.elapsedTime * 5) + 1) / 2) : 0;
     ringMat.opacity += (target - ringMat.opacity) * Math.min(1, dt * 4);
     d.ring.position.set(d.group.position.x, 2, d.group.position.z);
   }

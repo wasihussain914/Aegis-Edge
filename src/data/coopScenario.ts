@@ -78,10 +78,26 @@ export const ARMY_TANK_COLUMN: Unit = tankColumnAt(0);
  */
 export const COOP_TRACKS: Track[] = [
   { id: "HOSTILE-1", pos: { x: -140, z: 300 }, faction: "hostile", threat: "HIGH" },
-  { id: "HOSTILE-2", pos: { x: 240, z: 140 }, faction: "hostile", threat: "HIGH" },
+  { id: "HOSTILE-2", pos: { x: 820, z: 420 }, faction: "hostile", threat: "HIGH" }, // penetrator — starts FAR, flies in
   { id: "FRIEND-1", pos: { x: 120, z: -260 }, faction: "friendly", threat: "NONE" },
   { id: "NEUTRAL-1", pos: { x: 900, z: 120 }, faction: "neutral", threat: "NONE" },
 ];
+
+/**
+ * The demo penetrator (HOSTILE-2): starts far out and flies straight toward the protected asset,
+ * halting at 25 m. Deterministic by tick. The 3D layer advances its track position with this each
+ * frame, so the units DETECT it on approach (out-of-range → in-range), CLASSIFY it HOSTILE, and
+ * DESTROY it once engaged — the full "detect → classify → defeat" arc.
+ */
+export const PENETRATOR_ID = "HOSTILE-2";
+const PEN_START = { x: 820, z: 420 };
+const PEN_SPEED_MPS = 24;
+export function penetratorPositionAt(tick: number, dtSec = 1): { x: number; z: number } {
+  const len = Math.hypot(PEN_START.x, PEN_START.z);
+  const travel = Math.min(len - 25, Math.max(0, tick) * PEN_SPEED_MPS * dtSec);
+  const f = len > 0 ? travel / len : 0;
+  return { x: PEN_START.x * (1 - f), z: PEN_START.z * (1 - f) };
+}
 
 /**
  * Deterministic Link-16 state between the two units at a given tick. The Column closes on the
