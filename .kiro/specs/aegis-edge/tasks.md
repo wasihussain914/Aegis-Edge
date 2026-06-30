@@ -58,6 +58,18 @@ if stuck. **The loop appends new tasks under "Discovered" as it learns.** Verify
       asset; when a HIGH track crosses inside `SITE.noFlyR`, speed up its tail-strobe blink and
       raise its trail opacity so the penetration reads as urgent in the live demo (R1.4 HIGH
       unmistakable, R4.3 ingress beat). Deterministic + cheap; classifier untouched.
+- [ ] D8. Sensor-fusion confidence cue: reuse T4's per-frame detection to count how many distinct
+      modalities currently hold each track; when ≥2 sensors see it, mark the track "FUSED" (brighten
+      its strobe / bump trail opacity) and surface a fused-track count in the HUD clock line. Ties
+      the new sensor↔track association into at-a-glance readability (R1.3, R1.4). Deterministic +
+      cheap; classifier untouched. Keep build green and 60 fps.
+- [ ] D9. Sensor ID labels: a small color-coded canvas-sprite label (RAD-1 / RF-1 / EO-1, tinted by
+      modality) floating above each sensor post so the now-distinct coverage shapes are named at a
+      glance (R1.3 readability). One shared sprite material per sensor; keep it cheap and 60 fps.
+- [ ] D10. Detection-line polish: instead of a hard on/off pop, fade each detection line's opacity
+      in/out (and optionally taper toward the track) so a sweep "acquiring" a track reads smoothly
+      rather than flickering — animate material.opacity toward a target each frame (R1.3 polish).
+      Cheap; classifier untouched. Keep build green and 60 fps.
 ## Done when
 Waves 1-3 + Discovered checked or blocked; `npm run typecheck` + `npm run build` green; the
 scripted demo path works end-to-end. Local commits only (Wasi pushes in the morning).
