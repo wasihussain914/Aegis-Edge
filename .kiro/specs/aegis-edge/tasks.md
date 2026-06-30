@@ -186,6 +186,17 @@ if stuck. **The loop appends new tasks under "Discovered" as it learns.** Verify
       sensor↔track association to a visible cue beyond the detection line (R1.3, R1.4). One reused light;
       target the live track position each frame; cap intensity so bloom stays controlled. 60 fps; classifier
       untouched; keep build + typecheck green.
+- [ ] D37. Celestial disc (visible sun/moon): the scene has a directional `sun` light at (-500,700,400)
+      but no visible source. Add a soft emissive disc/sprite placed along that light's bearing, low over
+      the horizon and inside the sky dome, tinted warm to match the dusk band — so the lighting has an
+      anchor and the eye gets a horizon focal point (R1.1, R1.6). Reuse the glow-sprite pattern; keep it
+      under/at the bloom threshold so it glows without blowing out. Static; classifier untouched; keep
+      build + typecheck green and 60 fps.
+- [ ] D38. Starfield twinkle: give the D4 stars subtle life by modulating the shared PointsMaterial
+      opacity with a slow global sin(t) (one uniform write per frame, no per-star cost), oscillating
+      gently within a low band (~0.4–0.65) so the sky feels alive without ever rising toward the bloom
+      threshold or washing out markers (R1.6). Deterministic from clock.elapsedTime; classifier
+      untouched; keep build + typecheck green and 60 fps.
 
 ## Done when
 Waves 1-3 + Discovered checked or blocked; `npm run typecheck` + `npm run build` green; the
