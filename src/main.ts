@@ -389,6 +389,7 @@ interface Live {
   label: THREE.Sprite; ring?: THREE.Mesh;
   dropLine: THREE.Line; dropPos: Float32Array; reticle: THREE.Mesh;  // D1: altitude depth cue
   decision?: GateDecision;            // T7: latched human-gate outcome for this track
+  fusedMods: Set<string>;             // D8: distinct sensor modalities holding this track this frame
 }
 
 // --- T7 governance: recommend-only DEFEAT requires a 2-person human gate (R3.1) ---
@@ -532,7 +533,7 @@ for (const t of tracks()) {
   // D6: deterministic per-track phase (seeded from the id digits) so the bird's wander and the
   // idle-rotor cadence are identical every run rather than random.
   const phase = ([...t.id].reduce((a, c) => a + c.charCodeAt(0), 0) % 360) * (Math.PI / 180);
-  live.push({ track: t, ...parts, trail, cls, t: Math.random(), bank: 0, prevDir: new THREE.Vector3(0, 0, 1), curve, curveLen, climb: 0, phase, label, ring, dropLine, dropPos, reticle });
+  live.push({ track: t, ...parts, trail, cls, t: Math.random(), bank: 0, prevDir: new THREE.Vector3(0, 0, 1), curve, curveLen, climb: 0, phase, label, ring, dropLine, dropPos, reticle, fusedMods: new Set() });
 }
 
 // --- live detection lines: one per (sensor, track); shown only while that sensor sees the track ---
@@ -851,9 +852,14 @@ function animate() {
     // strobe faster and rides a brighter, more opaque trail so the incursion reads as urgent.
     const rangeToAsset = Math.hypot(p.x, p.z);
     const ingress = l.cls.threat === "HIGH" && rangeToAsset < SITE.noFlyR;
+    // D8: a track held by ≥2 distinct sensor modalities is "FUSED" — lift the strobe's off-floor to
+    // a steady glimmer and bump its trail so high-confidence (multi-sensor) tracks read at a glance.
+    // (fusedMods is recomputed in the detection loop below, so this uses last frame's state — fine.)
+    const fused = l.fusedMods.size >= 2;
     const strobeHz = ingress ? 20 : 8;
-    l.strobe.emissiveIntensity = Math.sin(clock.elapsedTime * strobeHz + l.t * 12) > 0.7 ? 3.2 : 0.12;
-    (l.trail.material as THREE.LineBasicMaterial).opacity = ingress ? 0.85 : 0.35;
+    const strobeOn = Math.sin(clock.elapsedTime * strobeHz + l.t * 12) > 0.7;
+    l.strobe.emissiveIntensity = strobeOn ? 3.2 : fused ? 0.6 : 0.12;
+    (l.trail.material as THREE.LineBasicMaterial).opacity = ingress ? 0.85 : fused ? 0.55 : 0.35;
     // D1: altitude drop-line + ground reticle track the drone's x/z each frame
     l.dropPos[0] = p.x; l.dropPos[1] = p.y; l.dropPos[2] = p.z;
     l.dropPos[3] = p.x; l.dropPos[4] = 1.2;  l.dropPos[5] = p.z;
@@ -879,6 +885,7 @@ function animate() {
     s.yaw.rotation.y = s.bearing;
   }
   // detection lines: a sensor sees a track when it's in range AND inside the current scan lobe
+  for (const l of live) l.fusedMods.clear();   // D8: recompute multi-sensor fusion fresh each frame
   for (const d of detLines) {
     const tp = d.l.group.position;
     const dx = tp.x - d.s.site.x, dz = tp.z - d.s.site.z;
@@ -890,6 +897,7 @@ function animate() {
     }
     d.line.visible = seen;
     if (seen) {
+      d.l.fusedMods.add(d.s.mode);   // D8: record this modality as currently holding the track
       d.pos[0] = d.s.site.x; d.pos[1] = 9; d.pos[2] = d.s.site.z;
       d.pos[3] = tp.x; d.pos[4] = tp.y; d.pos[5] = tp.z;
       (d.line.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
@@ -937,7 +945,8 @@ function animate() {
   }
   if (camAnimT >= 1 && !followHostile) controls.update();          // operator orbit + damping
   else camera.lookAt(controls.target);
-  clockEl.textContent = `T+${clock.elapsedTime.toFixed(1)}s · ${live.length} tracks · ${live.filter((l) => l.cls.threat === "HIGH").length} HIGH`;
+  const fusedCount = live.filter((l) => l.fusedMods.size >= 2).length;  // D8: multi-sensor tracks
+  clockEl.textContent = `T+${clock.elapsedTime.toFixed(1)}s · ${live.length} tracks · ${live.filter((l) => l.cls.threat === "HIGH").length} HIGH · ${fusedCount} FUSED`;
   composer.render();
 }
 animate();

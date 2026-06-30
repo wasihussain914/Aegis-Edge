@@ -61,7 +61,7 @@ if stuck. **The loop appends new tasks under "Discovered" as it learns.** Verify
       asset; when a HIGH track crosses inside `SITE.noFlyR`, speed up its tail-strobe blink and
       raise its trail opacity so the penetration reads as urgent in the live demo (R1.4 HIGH
       unmistakable, R4.3 ingress beat). Deterministic + cheap; classifier untouched.
-- [ ] D8. Sensor-fusion confidence cue: reuse T4's per-frame detection to count how many distinct
+- [x] D8. Sensor-fusion confidence cue: reuse T4's per-frame detection to count how many distinct
       modalities currently hold each track; when ≥2 sensors see it, mark the track "FUSED" (brighten
       its strobe / bump trail opacity) and surface a fused-track count in the HUD clock line. Ties
       the new sensor↔track association into at-a-glance readability (R1.3, R1.4). Deterministic +

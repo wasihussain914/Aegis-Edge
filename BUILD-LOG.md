@@ -180,3 +180,15 @@ Newest at the bottom. One line per iteration: date/time, task, how verified.
   0.35→0.85, so a HIGH penetration of the no-fly volume reads as urgent in the live command view
   (R1.4 HIGH unmistakable, R4.3 ingress beat). Deterministic, ~3 ops/track, classifier untouched.
 - Verified: `npm run typecheck` + `npm run build` both green.
+
+## 2026-06-30 05:0x CDT — D8: sensor-fusion confidence cue
+- Added `fusedMods: Set<string>` to each Live track. In the detection loop (which already decides
+  per (sensor,track) whether a sensor "sees" the track from range + scan-lobe), record the sensor's
+  modality into the track's set — so the set holds the distinct modalities currently fixing it.
+- A track held by ≥2 distinct modalities is "FUSED": its tail-strobe off-floor lifts 0.12→0.6 (a
+  steady glimmer instead of going dark between blinks) and its trail opacity bumps 0.35→0.55, so
+  high-confidence multi-sensor tracks read at a glance (R1.3 sensor↔track association, R1.4).
+- HUD clock line now appends `· N FUSED` alongside the track/HIGH counts.
+- Set is cleared+recomputed each frame; strobe/trail brightening reads last frame's state (1-frame
+  lag, imperceptible). Deterministic, cheap, classifier untouched.
+- Verified: `npm run typecheck` + `npm run build` both green; `npm test` 5/5 pass.
