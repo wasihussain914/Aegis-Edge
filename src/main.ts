@@ -8,7 +8,7 @@
  */
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { buildings, sensors, tracks, SITE, type DroneTrack, type Waypoint } from "./data/scenario.js";
+import { buildings, sensors, tracks, SITE, type DroneTrack } from "./data/scenario.js";
 import { classify, explainTemplate, type Classification } from "./model/threatCall.js";
 
 const THREAT_COLOR: Record<string, number> = { HIGH: 0xff4d5e, MED: 0xffc14d, LOW: 0x5dd6a0, NONE: 0x6fa8ff };
@@ -130,7 +130,23 @@ const facadeTones = [0x222b38, 0x2a3340, 0x1d2530, 0x2f3744, 0x252e3b];
 const roofMat = new THREE.MeshStandardMaterial({ color: 0x141a22, roughness: 0.9, metalness: 0.15 });
 const parapetMat = new THREE.MeshStandardMaterial({ color: 0x2b3340, roughness: 0.85 });
 
-for (const b of buildings()) {
+const cityBuildings = buildings();
+// Footprint boxes (+margin) and rooftop height used by the drones for altitude avoidance.
+const cityBoxes = cityBuildings.map((b) => ({
+  x: b.x, z: b.z, hw: b.w / 2 + 10, hd: b.d / 2 + 10, top: b.h + 14,
+}));
+/** Min altitude a drone should hold at (x,z) to clear any rooftop it's flying over. */
+function clearanceFloor(x: number, z: number): number {
+  let floor = 0;
+  for (const b of cityBoxes) {
+    if (Math.abs(x - b.x) < b.hw && Math.abs(z - b.z) < b.hd && b.top + 16 > floor) {
+      floor = b.top + 16; // rooftop + safety standoff
+    }
+  }
+  return floor;
+}
+
+for (const b of cityBuildings) {
   // per-building deterministic variety from its position
   let s = ((Math.round(b.x) * 73856093) ^ (Math.round(b.z) * 19349663)) >>> 0;
   const rnd = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
@@ -192,6 +208,7 @@ interface Live {
   track: DroneTrack; group: THREE.Group; frame: THREE.Group; body: THREE.Mesh;
   rotors: THREE.Object3D[]; strobe: THREE.MeshStandardMaterial; trail: THREE.Line;
   cls: Classification; t: number; bank: number; prevDir: THREE.Vector3;
+  curve: THREE.CatmullRomCurve3; curveLen: number; climb: number;
 }
 const live: Live[] = [];
 
@@ -256,16 +273,15 @@ for (const t of tracks()) {
   const color = THREAT_COLOR[cls.threat];
   const parts = makeDrone(color);
   scene.add(parts.group);
-  const trailGeo = new THREE.BufferGeometry().setFromPoints(t.path.map((p: Waypoint) => new THREE.Vector3(p.x, p.y, p.z)));
+  // One curve per drone, built once (was rebuilt every frame). Arc-length lookups below
+  // give constant ground speed and smooth heading along the spline.
+  const curve = new THREE.CatmullRomCurve3(t.path.map((p) => new THREE.Vector3(p.x, p.y, p.z)), true, "catmullrom", 0.5);
+  const curveLen = curve.getLength();
+  // Trail follows the smooth flown spline (arc-length spaced) rather than the raw waypoints.
+  const trailGeo = new THREE.BufferGeometry().setFromPoints(curve.getSpacedPoints(80));
   const trail = new THREE.Line(trailGeo, new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.35 }));
   scene.add(trail);
-  live.push({ track: t, ...parts, trail, cls, t: Math.random(), bank: 0, prevDir: new THREE.Vector3(0, 0, 1) });
-}
-
-// --- catmull-rom path eval for smooth flight ---
-function pathPoint(path: Waypoint[], t: number): THREE.Vector3 {
-  const curve = new THREE.CatmullRomCurve3(path.map((p) => new THREE.Vector3(p.x, p.y, p.z)), true, "catmullrom", 0.5);
-  return curve.getPoint(t % 1);
+  live.push({ track: t, ...parts, trail, cls, t: Math.random(), bank: 0, prevDir: new THREE.Vector3(0, 0, 1), curve, curveLen, climb: 0 });
 }
 
 // --- interaction: click a drone -> threat-call panel ---
@@ -299,10 +315,15 @@ function animate() {
   requestAnimationFrame(animate);
   const dt = clock.getDelta();
   for (const l of live) {
-    const len = 1400; // approx path length scale
-    l.t += (l.track.speedMps * dt) / len;
-    const p = pathPoint(l.track.path, l.t);
-    const ahead = pathPoint(l.track.path, l.t + 0.01);
+    // Arc-length lookups: u is fraction of distance, so ground speed is constant in m/s
+    // regardless of how the spline bunches near waypoints (smooth, real-looking motion).
+    const u = ((l.t % 1) + 1) % 1;
+    const p = l.curve.getPointAt(u);
+    const ahead = l.curve.getPointAt((u + 0.012) % 1);
+    // Building avoidance: climb to clear any rooftop we're overflying, then ease back down.
+    const need = Math.max(0, clearanceFloor(p.x, p.z) - p.y);
+    l.climb += (need - l.climb) * Math.min(1, dt * 1.5);               // smooth climb/descend
+    p.y += l.climb; ahead.y += l.climb;
     l.group.position.copy(p);
     l.group.lookAt(ahead);
     // bank into the turn: roll the airframe by the signed heading change
@@ -312,6 +333,9 @@ function animate() {
     l.bank += (targetBank - l.bank) * Math.min(1, dt * 4);
     l.frame.rotation.z = l.bank;
     l.prevDir.copy(dir);
+    // Speed easing: ease off the throttle through sharp turns, full speed on straights.
+    const speedScale = 1 - Math.min(0.55, Math.abs(turn) * 9);
+    l.t += (l.track.speedMps * speedScale * dt) / l.curveLen;
     for (const r of l.rotors) r.rotation.y += dt * 42;                  // spin rotors
     l.strobe.emissiveIntensity = Math.sin(clock.elapsedTime * 8 + l.t * 12) > 0.7 ? 3.2 : 0.12;
   }

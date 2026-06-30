@@ -9,7 +9,7 @@ if stuck. **The loop appends new tasks under "Discovered" as it learns.** Verify
       motion blur, and bank-into-turn so motion reads as real flight. Replace the box body.
 - [x] T2. City & terrain pass: window-lit building materials at dusk, varied rooftops, subtle
       ground texture, and a soft atmospheric sky + horizon so it doesn't read as a void.
-- [ ] T3. Navigation realism: drones path-find around buildings (simple avoidance / altitude
+- [x] T3. Navigation realism: drones path-find around buildings (simple avoidance / altitude
       adjust), with smooth heading and speed easing along the spline.
 - [ ] T4. Sensor coverage polish: distinct radar dome / RF bearing wedge / EO-IR frustum with
       subtle scan animation; show which sensors currently "see" each track.
@@ -49,6 +49,15 @@ if stuck. **The loop appends new tasks under "Discovered" as it learns.** Verify
 - [ ] D5. Living windows: cheap deterministic flicker so a small fraction of building windows
       toggle on/off over time (modulate emissiveIntensity on a slow phase per building), giving the
       skyline life without per-window cost. Keep build green and 60 fps (R1.6).
+- [ ] D6. Per-truth flight character: make the truth label visually legible in motion. The bird
+      (0205) wanders — add a small deterministic lateral + altitude bob offset (sin of t·phase) and
+      idle/slow rotors; the friendly (0192, fast) banks wider (lower bank clamp); hostiles stay
+      precise and tight. Drives R1.2 "realistic paths" without touching the classifier. Keep build
+      green and 60 fps.
+- [ ] D7. Ingress urgency cue: each frame compute a track's horizontal range to the protected
+      asset; when a HIGH track crosses inside `SITE.noFlyR`, speed up its tail-strobe blink and
+      raise its trail opacity so the penetration reads as urgent in the live demo (R1.4 HIGH
+      unmistakable, R4.3 ingress beat). Deterministic + cheap; classifier untouched.
 ## Done when
 Waves 1-3 + Discovered checked or blocked; `npm run typecheck` + `npm run build` green; the
 scripted demo path works end-to-end. Local commits only (Wasi pushes in the morning).

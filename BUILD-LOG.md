@@ -25,3 +25,16 @@ Newest at the bottom. One line per iteration: date/time, task, how verified.
   subtle procedural speckle texture (repeat 28×) instead of flat color; fog tint warmed to dusk.
   All variety is position-seeded so it's identical every run. Classifier untouched. Verified:
   `npm run typecheck` + `npm run build` both green (dist 525.63 kB).
+- 2026-06-30 00:0x CDT — T3 done (Chopper). Navigation realism. Each drone now owns its
+  CatmullRomCurve3, built once at spawn (was rebuilt twice/frame) and queried by arc length
+  (`getPointAt`), so ground speed is a true, constant m/s along the spline instead of varying where
+  waypoints bunched — the param increment is `speedMps·dt / curveLen`. Added speed easing: drones
+  ease off the throttle through sharp turns (`speedScale = 1 − min(0.55, |turn|·9)` from the same
+  signed heading-change used for bank) and run full speed on straights. Added building avoidance by
+  altitude: precomputed footprint boxes (+10 m margin) + rooftop height; each frame a drone overflying
+  a roof smoothly climbs to clear it (rooftop + 16 m standoff, eased) and eases back down after,
+  so paths read as deconflicted flight rather than clipping through towers. Heading pitches with the
+  climb (lookAt on the climb-offset point). Trail now traces the flown spline (arc-length-spaced 80
+  pts) instead of raw waypoints. Removed the per-frame `pathPoint`/curve rebuild and the bogus
+  `len=1400` constant. Classifier untouched. Verified: `npm run typecheck` + `npm run build` both
+  green (dist 525.98 kB).
