@@ -136,3 +136,10 @@ Newest at the bottom. One line per iteration: date/time, task, how verified.
   (2 verts + 1 ring per drone, no per-frame allocation), frustumCulled off so the line never pops.
   Classifier/threat-call untouched. Self-extended tasks.md with D29–D31 (see Discovered). Verified:
   `npm run typecheck` + `npm run build` both green.
+- 2026-06-30 03:0x CDT — D2 done (Chopper). Answer-key lock: new `src/model/threatCall.test.ts`
+  imports the real `classify` + scenario `tracks()` and asserts the published key — 0427 & 0318 →
+  HIGH-threat drone, 0192 (friendly transponder) & 0205 (bird) NEVER promoted (threat NONE), and
+  exactly the two hostiles reach a non-NONE threat. Wired into existing `npm test` (node --test +
+  tsx). Build needed Node types for `node:test`/`node:assert`: added `@types/node` devDep and put
+  `"node"` in tsconfig `types` (kept `"three"`; DOM globals unaffected). Verified: `npm test` 5/5
+  pass, `npm run typecheck` + `npm run build` both green. R2.4 locked.
