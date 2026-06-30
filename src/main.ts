@@ -91,33 +91,78 @@ for (const s of sensors) {
 }
 
 // --- drones ---
-interface Live { track: DroneTrack; group: THREE.Group; body: THREE.Mesh; trail: THREE.Line; cls: Classification; t: number; }
+interface Live {
+  track: DroneTrack; group: THREE.Group; frame: THREE.Group; body: THREE.Mesh;
+  rotors: THREE.Object3D[]; strobe: THREE.MeshStandardMaterial; trail: THREE.Line;
+  cls: Classification; t: number; bank: number; prevDir: THREE.Vector3;
+}
 const live: Live[] = [];
-const rotorSpin: THREE.Object3D[] = [];
 
-function makeDrone(color: number): THREE.Group {
-  const g = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.BoxGeometry(6, 2, 6), new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.4, roughness: 0.4 }));
-  body.castShadow = true; body.name = "body"; g.add(body);
-  for (const [dx, dz] of [[5,5],[5,-5],[-5,5],[-5,-5]] as const) {
-    const arm = new THREE.Mesh(new THREE.BoxGeometry(1, 0.6, 1), new THREE.MeshStandardMaterial({ color: 0x222831 }));
-    arm.position.set(dx, 0, dz); g.add(arm);
-    const rotor = new THREE.Mesh(new THREE.CircleGeometry(3.2, 12), new THREE.MeshBasicMaterial({ color: 0x9fb6d6, transparent: true, opacity: 0.35, side: THREE.DoubleSide }));
-    rotor.rotation.x = -Math.PI / 2; rotor.position.set(dx, 1.4, dz); g.add(rotor); rotorSpin.push(rotor);
+interface DroneParts { group: THREE.Group; frame: THREE.Group; body: THREE.Mesh; rotors: THREE.Object3D[]; strobe: THREE.MeshStandardMaterial; }
+
+/** A proper quadrotor: capsule hull, carbon X-frame + motor pods, blurred contra-rotors,
+ *  camera gimbal, and red/green nav lights + a blinking tail strobe. */
+function makeDrone(color: number): DroneParts {
+  const group = new THREE.Group();         // positioned + yawed (lookAt) each frame
+  const frame = new THREE.Group();         // airframe; gets banked (rolled) into turns
+  group.add(frame);
+  const rotors: THREE.Object3D[] = [];
+  const carbon = new THREE.MeshStandardMaterial({ color: 0x161b24, roughness: 0.55, metalness: 0.35 });
+  const span = 6;
+
+  // hull (long axis forward = +Z) — replaces the flat box body
+  const body = new THREE.Mesh(
+    new THREE.CapsuleGeometry(2.4, 4.2, 4, 12),
+    new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.35, roughness: 0.4, metalness: 0.2 })
+  );
+  body.rotation.x = Math.PI / 2; body.castShadow = true; body.name = "body";
+  frame.add(body);
+
+  // camera gimbal slung under the nose
+  const gimbal = new THREE.Mesh(new THREE.SphereGeometry(1.3, 12, 10), new THREE.MeshStandardMaterial({ color: 0x07090d, roughness: 0.3, metalness: 0.6 }));
+  gimbal.position.set(0, -2.2, 2.6); frame.add(gimbal);
+  const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.75, 1.2, 10), new THREE.MeshStandardMaterial({ color: 0x0e1622, emissive: 0x1f3e5c, emissiveIntensity: 0.6 }));
+  lens.rotation.x = Math.PI / 2.6; lens.position.set(0, -2.7, 3.4); frame.add(lens);
+
+  // four arms + motor pods + rotors
+  for (const [dx, dz] of [[span, span], [span, -span], [-span, span], [-span, -span]] as const) {
+    const L = Math.hypot(dx, dz);
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(L, 0.7, 0.7), carbon);
+    arm.position.set(dx / 2, 0, dz / 2); arm.rotation.y = Math.atan2(-dz, dx); arm.castShadow = true;
+    frame.add(arm);
+    const pod = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.3, 1.8, 10), carbon);
+    pod.position.set(dx, 0.5, dz); frame.add(pod);
+
+    const rotor = new THREE.Group();
+    rotor.position.set(dx, 1.5, dz);
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(4.2, 24), new THREE.MeshBasicMaterial({ color: 0x9fb6d6, transparent: true, opacity: 0.16, side: THREE.DoubleSide }));
+    disc.rotation.x = -Math.PI / 2; rotor.add(disc);                       // motion-blur disc
+    for (const ang of [0, Math.PI / 2]) {                                  // two thin blades
+      const blade = new THREE.Mesh(new THREE.BoxGeometry(8.2, 0.18, 0.55), new THREE.MeshStandardMaterial({ color: 0x2a2f3a }));
+      blade.rotation.y = ang; rotor.add(blade);
+    }
+    frame.add(rotor); rotors.push(rotor);
   }
-  return g;
+
+  // nav lights: port red, starboard green, blinking white tail strobe
+  const navMat = (c: number) => new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 1.5 });
+  const port = new THREE.Mesh(new THREE.SphereGeometry(0.7, 8, 8), navMat(0xff2b2b)); port.position.set(-span, 0.7, 1.5); frame.add(port);
+  const stbd = new THREE.Mesh(new THREE.SphereGeometry(0.7, 8, 8), navMat(0x2bff6a)); stbd.position.set(span, 0.7, 1.5); frame.add(stbd);
+  const strobe = navMat(0xffffff);
+  const tail = new THREE.Mesh(new THREE.SphereGeometry(0.6, 8, 8), strobe); tail.position.set(0, 0.9, -span); frame.add(tail);
+
+  return { group, frame, body, rotors, strobe };
 }
 
 for (const t of tracks()) {
   const cls = classify(t.features);
   const color = THREAT_COLOR[cls.threat];
-  const group = makeDrone(color);
-  scene.add(group);
-  const body = group.getObjectByName("body") as THREE.Mesh;
+  const parts = makeDrone(color);
+  scene.add(parts.group);
   const trailGeo = new THREE.BufferGeometry().setFromPoints(t.path.map((p: Waypoint) => new THREE.Vector3(p.x, p.y, p.z)));
   const trail = new THREE.Line(trailGeo, new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.35 }));
   scene.add(trail);
-  live.push({ track: t, group, body, trail, cls, t: Math.random() });
+  live.push({ track: t, ...parts, trail, cls, t: Math.random(), bank: 0, prevDir: new THREE.Vector3(0, 0, 1) });
 }
 
 // --- catmull-rom path eval for smooth flight ---
@@ -163,8 +208,16 @@ function animate() {
     const ahead = pathPoint(l.track.path, l.t + 0.01);
     l.group.position.copy(p);
     l.group.lookAt(ahead);
+    // bank into the turn: roll the airframe by the signed heading change
+    const dir = ahead.clone().sub(p).setY(0).normalize();
+    const turn = l.prevDir.x * dir.z - l.prevDir.z * dir.x;             // signed (cross-y)
+    const targetBank = THREE.MathUtils.clamp(turn * 40, -0.6, 0.6);
+    l.bank += (targetBank - l.bank) * Math.min(1, dt * 4);
+    l.frame.rotation.z = l.bank;
+    l.prevDir.copy(dir);
+    for (const r of l.rotors) r.rotation.y += dt * 42;                  // spin rotors
+    l.strobe.emissiveIntensity = Math.sin(clock.elapsedTime * 8 + l.t * 12) > 0.7 ? 3.2 : 0.12;
   }
-  for (const r of rotorSpin) r.rotation.z += dt * 40;
   controls.update();
   clockEl.textContent = `T+${clock.elapsedTime.toFixed(1)}s · ${live.length} tracks · ${live.filter((l) => l.cls.threat === "HIGH").length} HIGH`;
   renderer.render(scene, camera);
