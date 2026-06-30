@@ -215,6 +215,11 @@ function clearanceFloor(x: number, z: number): number {
   return floor;
 }
 
+// D5: living windows — a fraction of buildings get their window emissive breathed on a slow,
+// per-building phase so the skyline has life (windows reading as flicking on/off) at no per-window cost.
+const WINDOW_BASE = 0.9;
+const livingFacades: { mat: THREE.MeshStandardMaterial; phase: number; speed: number }[] = [];
+
 for (const b of cityBuildings) {
   // per-building deterministic variety from its position
   let s = ((Math.round(b.x) * 73856093) ^ (Math.round(b.z) * 19349663)) >>> 0;
@@ -226,8 +231,10 @@ for (const b of cityBuildings) {
   winTex.repeat.set(Math.max(1, Math.round(b.w / 13)), Math.max(2, Math.round(b.h / 13)));
   const facadeMat = new THREE.MeshStandardMaterial({
     color: facadeTones[Math.floor(rnd() * facadeTones.length)], roughness: 0.82, metalness: 0.12,
-    emissive: 0xffffff, emissiveMap: winTex, emissiveIntensity: 0.9,
+    emissive: 0xffffff, emissiveMap: winTex, emissiveIntensity: WINDOW_BASE,
   });
+  // ~40% of buildings "live": deterministic phase + slow speed for the breathing modulation below.
+  if (rnd() < 0.4) livingFacades.push({ mat: facadeMat, phase: rnd() * Math.PI * 2, speed: 0.2 + rnd() * 0.3 });
   const body = new THREE.Mesh(new THREE.BoxGeometry(b.w, b.h, b.d), facadeMat);
   body.position.y = b.h / 2; body.castShadow = true; body.receiveShadow = true; g.add(body);
 
@@ -791,6 +798,13 @@ const clockEl = document.getElementById("clock")!;
 function animate() {
   requestAnimationFrame(animate);
   const dt = clock.getDelta();
+  // D5: breathe living-building windows on their slow per-building phase (two incommensurate sines
+  // so brightness dips irregularly — reads as windows flicking on/off — at one material write each).
+  const tw = clock.elapsedTime;
+  for (const w of livingFacades) {
+    const a = Math.sin(tw * w.speed + w.phase) * 0.6 + Math.sin(tw * w.speed * 0.37 + w.phase * 1.7) * 0.4;
+    w.mat.emissiveIntensity = WINDOW_BASE * (0.85 + 0.13 * a); // ~0.65–0.88, subtle; never blooms
+  }
   for (const l of live) {
     // Arc-length lookups: u is fraction of distance, so ground speed is constant in m/s
     // regardless of how the spline bunches near waypoints (smooth, real-looking motion).

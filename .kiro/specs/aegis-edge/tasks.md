@@ -49,7 +49,7 @@ if stuck. **The loop appends new tasks under "Discovered" as it learns.** Verify
       lands (R1.1). Position-seeded, instanced/Points for cheapness; keep 60 fps.
 - [x] D4. Starfield: a faint deterministic star Points cloud high in the sky dome (above the warm
       band) to finish the dusk atmosphere without washing out threat markers (R1.1, R1.6).
-- [ ] D5. Living windows: cheap deterministic flicker so a small fraction of building windows
+- [x] D5. Living windows: cheap deterministic flicker so a small fraction of building windows
       toggle on/off over time (modulate emissiveIntensity on a slow phase per building), giving the
       skyline life without per-window cost. Keep build green and 60 fps (R1.6).
 - [ ] D6. Per-truth flight character: make the truth label visually legible in motion. The bird

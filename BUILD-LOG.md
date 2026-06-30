@@ -160,3 +160,8 @@ Newest at the bottom. One line per iteration: date/time, task, how verified.
   behind everything and stays under the bloom threshold. Position-seeded → identical every run; no
   per-frame cost. Classifier untouched. Verified: `npm run typecheck` + `npm run build` both green
   (dist 568.44 kB). R1.1 / R1.6 dusk sky completed.
+- 2026-06-30 04:0x CDT — D5 done (Chopper). Living windows: ~40% of buildings now "live" — their
+  window emissiveMap intensity breathes on a slow, per-building deterministic phase (two incommensurate
+  sines so brightness dips irregularly, reading as windows flicking on/off), kept subtle (~0.65–0.88)
+  so it never crosses the bloom threshold. One material write per living building per frame; the rest
+  of the skyline stays static. Verified: `npm run typecheck` + `npm run build` green.
