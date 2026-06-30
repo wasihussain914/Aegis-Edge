@@ -255,6 +255,25 @@ interface Live {
   cls: Classification; t: number; bank: number; prevDir: THREE.Vector3;
   curve: THREE.CatmullRomCurve3; curveLen: number; climb: number;
   label: THREE.Sprite; ring?: THREE.Mesh;
+  decision?: GateDecision;            // T7: latched human-gate outcome for this track
+}
+
+// --- T7 governance: recommend-only DEFEAT requires a 2-person human gate (R3.1) ---
+// Every gate action appends an audit-ledger entry (R3.2). The classifier is never on this path:
+// the gate only authorizes/denies the *recommended* effector action, off the LLM kill chain.
+type GateDecision = "DEFEAT-AUTHORIZED" | "DENIED";
+interface LedgerEntry {
+  ts: number; trackId: string; class: string; threat: string; score: number;
+  decision: GateDecision; operators: string[];
+}
+const ledger: LedgerEntry[] = [];
+const ledgerEl = document.getElementById("ledger")!;
+function appendLedger(l: Live, decision: GateDecision, operators: string[]): void {
+  ledger.push({
+    ts: Date.now(), trackId: l.track.id, class: l.cls.class, threat: l.cls.threat,
+    score: l.cls.score, decision, operators,
+  });
+  ledgerEl.textContent = `audit ledger · ${ledger.length} ${ledger.length === 1 ? "entry" : "entries"}`;
 }
 const live: Live[] = [];
 
@@ -420,8 +439,10 @@ function showPanel(l: Live) {
     `<h2>${k.class.toUpperCase()} · score ${k.score}</h2>` +
     `<div class="why" id="why"><span class="src" id="src">⏳ AI narrating…</span>${explainTemplate(k)}</div>` +
     k.contributions.map((c) => `<div class="row"><span>${c.feature}</span><span>${c.weight > 0 ? "+" : ""}${c.weight}</span></div>`).join("") +
-    `<div class="row" style="margin-top:10px;color:#5f7799;"><span>recommend-only · human-gated</span><span>LLM off kill-chain</span></div>`;
+    `<div class="row" style="margin-top:10px;color:#5f7799;"><span>recommend-only · human-gated</span><span>LLM off kill-chain</span></div>` +
+    (k.threat === "HIGH" ? gateHtml(l) : "");
   panel.classList.add("show");
+  if (k.threat === "HIGH") wireGate(l);
 
   // Narrate OFF the kill chain: Bedrock (Nova) when creds/bridge are live, else offline template.
   // The classification above is already drawn and never changes; only the prose is replaced.
@@ -435,6 +456,66 @@ function showPanel(l: Live) {
       : `<span class="src src-off">○ offline template</span>`;
     why.innerHTML = `${badge}${n.text}`;
   });
+}
+
+/** T7: the 2-person human gate shown only for HIGH tracks. If already latched, render the outcome. */
+function gateHtml(l: Live): string {
+  if (l.decision) {
+    const cls = l.decision === "DEFEAT-AUTHORIZED" ? "authd" : "denied";
+    const msg = l.decision === "DEFEAT-AUTHORIZED"
+      ? "DEFEAT AUTHORIZED · 2-person auth recorded"
+      : "DEFEAT DENIED · logged";
+    return `<div class="gate">` +
+      `<div class="gate-h">⚠ RECOMMEND DEFEAT — requires 2-person auth</div>` +
+      `<div class="gate-status ${cls}">${msg}</div>` +
+      `<span class="gate-llm">human-gated · LLM off kill-chain</span>` +
+      `</div>`;
+  }
+  return `<div class="gate">` +
+    `<div class="gate-h">⚠ RECOMMEND DEFEAT — requires 2-person auth</div>` +
+    `<div class="gate-ops">` +
+      `<button class="op" id="opA">OPERATOR A ▢</button>` +
+      `<button class="op" id="opB">OPERATOR B ▢</button>` +
+    `</div>` +
+    `<div class="gate-act">` +
+      `<button class="auth" id="authBtn" disabled>AUTHORIZE DEFEAT</button>` +
+      `<button class="deny" id="denyBtn">DENY</button>` +
+    `</div>` +
+    `<div class="gate-status" id="gateStatus">two operators must arm before defeat can be authorized</div>` +
+    `<span class="gate-llm">human-gated · LLM off kill-chain</span>` +
+    `</div>`;
+}
+
+/** Wire the gate buttons for the open HIGH-track panel. Arm state is local; the decision latches
+ *  onto the track and writes one audit-ledger entry. Re-opening the panel shows the latched outcome. */
+function wireGate(l: Live): void {
+  if (l.decision) return;                          // already decided: gateHtml rendered the outcome
+  let armA = false, armB = false;
+  const opA = document.getElementById("opA") as HTMLButtonElement | null;
+  const opB = document.getElementById("opB") as HTMLButtonElement | null;
+  const authBtn = document.getElementById("authBtn") as HTMLButtonElement | null;
+  const denyBtn = document.getElementById("denyBtn") as HTMLButtonElement | null;
+  const status = document.getElementById("gateStatus");
+  if (!opA || !opB || !authBtn || !denyBtn || !status) return;
+
+  const refresh = () => {
+    opA.classList.toggle("armed", armA); opA.textContent = `OPERATOR A ${armA ? "▣" : "▢"}`;
+    opB.classList.toggle("armed", armB); opB.textContent = `OPERATOR B ${armB ? "▣" : "▢"}`;
+    authBtn.disabled = !(armA && armB);
+    status.textContent = (armA && armB)
+      ? "2-person auth armed — defeat may be authorized"
+      : "two operators must arm before defeat can be authorized";
+  };
+  opA.onclick = () => { armA = !armA; refresh(); };
+  opB.onclick = () => { armB = !armB; refresh(); };
+
+  const latch = (decision: GateDecision, ops: string[]) => {
+    l.decision = decision;
+    appendLedger(l, decision, ops);
+    if (selected === l) showPanel(l);              // re-render to the latched outcome
+  };
+  authBtn.onclick = () => { if (armA && armB) latch("DEFEAT-AUTHORIZED", ["OPERATOR-A", "OPERATOR-B"]); };
+  denyBtn.onclick = () => latch("DENIED", [armA ? "OPERATOR-A" : "", armB ? "OPERATOR-B" : ""].filter(Boolean));
 }
 
 // --- loop ---

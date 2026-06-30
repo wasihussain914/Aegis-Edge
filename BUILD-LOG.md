@@ -85,3 +85,14 @@ Newest at the bottom. One line per iteration: date/time, task, how verified.
   preview` (static dist) has no endpoint and the client falls back to the offline template — by
   design (works disconnected). Self-extended: D14 bridge-health HUD pill, D15 narration cache +
   re-narrate, D16 hash-chained ledger seed (toward T7/R3.2).
+- 2026-06-30 01:3x CDT — T7 done (Chopper). Human-gate UX for consequential action (R3.1). HIGH
+  tracks now render a "⚠ RECOMMEND DEFEAT — requires 2-person auth" gate in the threat panel: two
+  operator arm-toggles (OPERATOR A/B), an AUTHORIZE DEFEAT button that stays disabled until BOTH are
+  armed, and a DENY button. The decision latches onto the track (re-opening the panel shows the
+  outcome, not the live gate) and each action writes one audit-ledger entry {ts, trackId, class,
+  threat, score, decision, operators} to an in-memory ledger; a live "audit ledger · N entries"
+  counter shows in the HUD (R3.2 seed). A "human-gated · LLM off kill-chain" badge is visible inside
+  the gate. Defeat is recommend-only — the gate authorizes/denies the recommended effector action,
+  never the classifier (untouched, off the LLM path). Verified: `npm run typecheck` + `npm run build`
+  both green (dist 541.71 kB). Self-extended: D17 hash-chain the T7 ledger, D18 ledger replay
+  timeline, D19 keyboard-driven demo gate.

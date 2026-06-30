@@ -20,7 +20,7 @@ if stuck. **The loop appends new tasks under "Discovered" as it learns.** Verify
 - [x] T6. Bedrock explanation wired into the panel: on click, call a tiny backend/CLI bridge that
       runs `model/threatCall` + Bedrock (Nova) for the narrative; fall back to the offline
       template when no creds. Never alter the classification. (R2.3)
-- [ ] T7. Human-gate UX: HIGH track shows a "RECOMMEND DEFEAT — requires 2-person auth" gate with
+- [x] T7. Human-gate UX: HIGH track shows a "RECOMMEND DEFEAT — requires 2-person auth" gate with
       approve/deny that writes a ledger entry; LLM-off-kill-chain badge visible. (R3)
 
 ## Wave 3 — demo polish (R1.5, R4.3)
@@ -94,6 +94,20 @@ if stuck. **The loop appends new tasks under "Discovered" as it learns.** Verify
       hash-chained entry {ts, trackId, class, threat, score, contributions, source, prevHash, hash} to
       an in-memory ledger and expose a count in the HUD. Pure client + deterministic SHA over the
       entry; sets up the T7 human-gate + replay timeline. Classifier untouched; keep build green.
+      NOTE: T7 (done) already added the in-memory `ledger[]` + HUD counter and writes gate entries —
+      so D16 now means: extend the *existing* T7 ledger with prevHash/hash chaining (cover classify +
+      gate actions), don't build a second ledger.
+- [ ] D17. Ledger replay timeline (R3.2): a collapsible overlay (toggle in the HUD) that lists the
+      T7 ledger entries in order — ts · track · class/threat · decision · operators — newest last, so
+      the audit trail can be walked through during the demo. Read-only DOM over the existing `ledger[]`;
+      refresh on each append. Cheap; classifier untouched; keep build + typecheck green.
+- [ ] D18. 3D authorized-defeat cue: when a HIGH track has a latched DEFEAT-AUTHORIZED decision, change
+      its in-scene marker (e.g. swap the pulsing threat ring for a locked double-ring / brighter tint
+      and a small "DEFEAT AUTH" sprite) so the authorized state reads in the command view, not only in
+      the panel (R1.4, R3.1). Clear cue for DENIED too. Deterministic + cheap; keep 60 fps and build green.
+- [ ] D19. Ledger JSON export: a tiny HUD affordance ("⤓ export ledger") that serializes the T7
+      `ledger[]` to a downloadable JSON blob for after-action review (R3.2). Pure client (Blob + object
+      URL); no network; classifier untouched. Keep build + typecheck green.
 ## Done when
 Waves 1-3 + Discovered checked or blocked; `npm run typecheck` + `npm run build` green; the
 scripted demo path works end-to-end. Local commits only (Wasi pushes in the morning).

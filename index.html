@@ -34,6 +34,31 @@
       #panel .src-ai  { background:#0d2233; color:#5fc8ff; border:1px solid #2f6f9e; }
       #panel .src-off { background:#22283a; color:#8aa3c7; border:1px solid #45506e; }
       #panel .row { font-size: 12px; color:#8aa3c7; margin-top:6px; display:flex; justify-content:space-between; }
+      /* --- T7 human-gate: 2-person authorization for a recommend-only DEFEAT --- */
+      #panel .gate { margin-top: 12px; padding: 10px; border-radius: 8px;
+        background: rgba(58,13,18,.5); border: 1px solid #ff6b78; }
+      #panel .gate-h { font-size: 11px; font-weight: 700; letter-spacing: .06em; color: #ff8a94;
+        display: flex; align-items: center; gap: 6px; }
+      #panel .gate-ops { display: flex; gap: 8px; margin-top: 10px; }
+      #panel .op { flex: 1; font: 600 11px/1 ui-sans-serif, system-ui, sans-serif; cursor: pointer;
+        padding: 7px 6px; border-radius: 6px; background: #14202f; color: #9db4d6;
+        border: 1px solid #45506e; transition: all .12s; }
+      #panel .op:hover { border-color: #6f87ad; }
+      #panel .op.armed { background: #0d2a1f; color: #7df0b8; border-color: #5dd6a0; }
+      #panel .gate-act { display: flex; gap: 8px; margin-top: 8px; }
+      #panel .auth, #panel .deny { flex: 1; font: 700 11px/1 ui-sans-serif, system-ui, sans-serif;
+        cursor: pointer; padding: 8px 6px; border-radius: 6px; letter-spacing: .04em; }
+      #panel .auth { background: #3a0d12; color: #ff6b78; border: 1px solid #ff6b78; }
+      #panel .auth:disabled { opacity: .4; cursor: not-allowed; }
+      #panel .auth:not(:disabled):hover { background: #ff6b78; color: #1a0507; }
+      #panel .deny { background: #14202f; color: #9db4d6; border: 1px solid #45506e; }
+      #panel .deny:hover { border-color: #8fb6ff; color: #cfe3ff; }
+      #panel .gate-status { font-size: 10.5px; color: #8aa3c7; margin-top: 8px; }
+      #panel .gate-status.authd { color: #ff8a94; font-weight: 700; }
+      #panel .gate-status.denied { color: #7df0b8; font-weight: 700; }
+      #panel .gate-llm { font-size: 9px; letter-spacing: .08em; text-transform: uppercase; color: #6f87ad;
+        margin-top: 8px; display: inline-block; padding: 1px 6px; border-radius: 999px;
+        border: 1px solid #2f4a3a; background: #0d2018; }
       #hint { position: fixed; bottom: 14px; left: 16px; z-index: 10; font-size: 11px; color: #5f7799; }
     </style>
   </head>
@@ -43,6 +68,7 @@
       <h1>AEGIS-EDGE</h1>
       <div class="sub">Counter-UAS · 1 km² · explainable threat-call at the edge</div>
       <div class="sub" id="clock" style="margin-top:6px;"></div>
+      <div class="sub" id="ledger" style="margin-top:2px;">audit ledger · 0 entries</div>
     </div>
     <div id="panel"></div>
     <div id="hint">drag to orbit · scroll to zoom · click a track for the AI threat-call</div>
