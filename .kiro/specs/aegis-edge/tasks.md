@@ -253,6 +253,19 @@ if stuck. **The loop appends new tasks under "Discovered" as it learns.** Verify
       decode the now-named, color-coded coverage shapes and labels without hovering (R1.3 readability).
       Static DOM written once at startup into the existing #hud block; classifier untouched; keep build +
       typecheck green.
+- [ ] D49. Ledger chain self-verify (builds on D16): once the T7/D16 ledger is prevHash/hash chained, add a
+      `verifyLedger()` that re-walks the chain (recompute each entry's hash, check it links to prevHash) and
+      surface the result in the HUD — "LEDGER ✓ <n> verified" (green) or "LEDGER ✗ broken @<i>" (red) — and
+      flag it during ledger export (D19) too, so the audit trail is demonstrably tamper-evident rather than
+      just appended (R3.2). Read-only over the existing `ledger[]`; deterministic SHA; classifier untouched;
+      keep build + typecheck + `npm test` green.
+- [ ] D50. Background airspace clutter (R1.2 "multiple simultaneous tracks", busier scope): add 2-3
+      deterministic benign contacts that transit well outside `SITE.noFlyR` (commercial-ish transits,
+      constant heading/altitude) as SCENE-ONLY decoration — small dim non-pulsing markers that read on the
+      D20 minimap and in 3D so the airspace looks live, not staged with exactly four drones. Do NOT feed them
+      to `model/threatCall` or the click/panel path and do NOT add them to the answer-key truth — they are
+      visual density only, so the D2/D32/D33 classifier tests stay untouched and green. Cheap instanced/Points
+      markers; keep build + typecheck green and 60 fps.
 
 ## Done when
 Waves 1-3 + Discovered checked or blocked; `npm run typecheck` + `npm run build` green; the
