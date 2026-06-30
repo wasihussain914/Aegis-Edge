@@ -151,3 +151,12 @@ Newest at the bottom. One line per iteration: date/time, task, how verified.
   (2) a 28-point perimeter ring of brighter warm lights at `protectedAsset.r + 12` round the plaza.
   No per-frame cost (static geometry, sizeAttenuation handles distance). Classifier untouched.
   Verified: `npm run typecheck` + `npm run build` both green. R1.1 dusk read landed.
+- 2026-06-30 03:5x CDT — D4 done (Chopper). Starfield to finish the dusk atmosphere. A seeded
+  Points cloud (~700 stars) placed on the upper dome only: uniform sphere directions kept where
+  normalized y ≥ 0.34, i.e. above the warm horizon band where the sky shader has gone deep blue, so
+  stars never sit over the city or wash out threat markers. Placed at r≈3300 (just inside the 3400
+  sky sphere) with `fog:false` so the fog far plane (2600) doesn't erase them; size 7 px,
+  sizeAttenuation off, opacity 0.55, depthWrite off, renderOrder −1 so it draws with the backdrop
+  behind everything and stays under the bloom threshold. Position-seeded → identical every run; no
+  per-frame cost. Classifier untouched. Verified: `npm run typecheck` + `npm run build` both green
+  (dist 568.44 kB). R1.1 / R1.6 dusk sky completed.

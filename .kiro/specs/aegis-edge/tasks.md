@@ -47,7 +47,7 @@ if stuck. **The loop appends new tasks under "Discovered" as it learns.** Verify
 - [x] D3. Dusk scale-anchors: perimeter lights ringing the protected-asset plaza + a sparse field
       of warm street-light points across the ground, so the city has human scale and the dusk read
       lands (R1.1). Position-seeded, instanced/Points for cheapness; keep 60 fps.
-- [ ] D4. Starfield: a faint deterministic star Points cloud high in the sky dome (above the warm
+- [x] D4. Starfield: a faint deterministic star Points cloud high in the sky dome (above the warm
       band) to finish the dusk atmosphere without washing out threat markers (R1.1, R1.6).
 - [ ] D5. Living windows: cheap deterministic flicker so a small fraction of building windows
       toggle on/off over time (modulate emissiveIntensity on a slow phase per building), giving the

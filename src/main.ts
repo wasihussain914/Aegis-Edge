@@ -93,6 +93,35 @@ const sky = new THREE.Mesh(
 );
 scene.add(sky);
 
+// --- D4: starfield — a faint deterministic star Points cloud high in the dome ---
+// Finishes the dusk atmosphere: stars only on the upper hemisphere (above the warm horizon band,
+// where the sky shader has gone deep blue), so they don't sit over the city or wash out markers.
+// Seeded so it's identical every run. fog:false because the stars live at r≈3300 — past the
+// fog far plane (2600) — and a small size + low opacity keeps them below the bloom threshold.
+{
+  let s = 0x2a17f; const rnd = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+  const pts: number[] = [];
+  const R = 3300;
+  let placed = 0, guard = 0;
+  while (placed < 700 && guard++ < 6000) {
+    // uniform direction on the sphere, kept only where it's well above the warm band
+    const u = rnd() * 2 - 1, theta = rnd() * Math.PI * 2;
+    const r = Math.sqrt(1 - u * u);
+    const dy = u;                                   // = normalize(dir).y the sky shader keys off
+    if (dy < 0.34) continue;                        // skip the warm horizon band / below-grid
+    pts.push(Math.cos(theta) * r * R, dy * R, Math.sin(theta) * r * R);
+    placed++;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
+  const stars = new THREE.Points(geo, new THREE.PointsMaterial({
+    color: 0xbcd2ff, size: 7, sizeAttenuation: false, fog: false,
+    transparent: true, opacity: 0.55, depthWrite: false,
+  }));
+  stars.renderOrder = -1;                           // drawn with the backdrop, behind everything
+  scene.add(stars);
+}
+
 // --- lighting: dusk sky + sun ---
 scene.add(new THREE.HemisphereLight(0x9fc0ff, 0x0a0f18, 0.6));
 const sun = new THREE.DirectionalLight(0xfff1d8, 1.4);
