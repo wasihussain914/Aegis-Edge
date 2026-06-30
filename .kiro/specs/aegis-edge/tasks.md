@@ -81,7 +81,7 @@ if stuck. **The loop appends new tasks under "Discovered" as it learns.** Verify
       ring around its drone (distinct from the HIGH threat ring) and gently scale-pulse its label so
       the chosen track is obvious in the scene, reinforcing the leader line (R2 readability). Clear
       on deselect. Deterministic + cheap; keep build green and 60 fps.
-- [ ] D13. Label declutter by distance: fade each track label's sprite opacity with camera distance
+- [x] D13. Label declutter by distance: fade each track label's sprite opacity with camera distance
       (full near, dim far) so a busy command view stays readable and the overlays never wash out the
       threat markers (R1.6, R2). Compute per frame from camera↔drone distance; cheap; 60 fps.
 - [ ] D14. Bridge health pill in the HUD: on load, probe `/api/narrate` once with a known track and

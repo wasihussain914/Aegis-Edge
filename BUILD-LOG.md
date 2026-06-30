@@ -216,3 +216,9 @@ Newest at the bottom. One line per iteration: date/time, task, how verified.
   threat ring. Paired with a gentle scale-pulse of the selected track's label (baseScale stored on the
   sprite at creation so it restores cleanly on deselect). Reinforces the leader line (R2 readability).
   Deterministic + cheap (4 tracks); classifier untouched. Verified: `npm run typecheck` + `npm run build` both green.
+- 2026-06-30 06:5x CDT — D13 done (Chopper). Label declutter by distance: each track label's
+  SpriteMaterial.opacity now fades with camera distance (full at ≤700u, easing to ~0.22 by ≥2200u)
+  so a busy oblique command view stays readable and the floating pills never wash out the threat
+  markers behind them. The selected track is pinned to opacity 1 so the chosen pick is always legible
+  regardless of range. One distanceTo + clamped lerp per track per frame — cheap; classifier
+  untouched (R1.6, R2). Verified: `npm run typecheck` + `npm run build` both green.

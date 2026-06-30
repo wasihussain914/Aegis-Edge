@@ -896,6 +896,19 @@ function animate() {
     l.reticle.position.set(p.x, 1.2, p.z);
     // floating label rides above the drone; HIGH tracks get a pulsing ground ring
     l.label.position.set(p.x, p.y + 15, p.z);
+    // D13: declutter by distance — fade each label's opacity with camera distance (full near, dim far)
+    // so a busy command view stays readable and labels never wash out the threat markers. The selected
+    // track stays full so the chosen pick is always legible. Cheap: one distance + lerp per track.
+    {
+      const lm = l.label.material as THREE.SpriteMaterial;
+      if (l === selected) {
+        lm.opacity = 1;
+      } else {
+        const d = camera.position.distanceTo(l.label.position);
+        const f = (d - 700) / (2200 - 700);                 // 0 near → 1 far
+        lm.opacity = 1 - 0.78 * Math.min(1, Math.max(0, f)); // 1.0 near → 0.22 far
+      }
+    }
     // D12: gently scale-pulse the selected track's label so the chosen track is obvious; others rest
     const bs = l.label.userData.baseScale as THREE.Vector3;
     if (l === selected) {
