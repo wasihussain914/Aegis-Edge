@@ -21,8 +21,8 @@ renderer.shadowMap.enabled = true;
 app.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x070b12);
-scene.fog = new THREE.Fog(0x070b12, 900, 2400);
+scene.background = new THREE.Color(0x0b1320);
+scene.fog = new THREE.Fog(0x142031, 900, 2600);
 
 const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 1, 6000);
 camera.position.set(620, 480, 620);
@@ -31,6 +31,27 @@ const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.target.set(0, 60, 0);
 controls.maxPolarAngle = Math.PI / 2.05;
+
+// --- atmospheric dusk sky dome (gradient: warm horizon -> deep blue zenith) ---
+const sky = new THREE.Mesh(
+  new THREE.SphereGeometry(3400, 32, 16),
+  new THREE.ShaderMaterial({
+    side: THREE.BackSide, fog: false, depthWrite: false,
+    uniforms: {
+      top: { value: new THREE.Color(0x081225) },
+      mid: { value: new THREE.Color(0x223a5c) },
+      bot: { value: new THREE.Color(0xc77a44) },
+    },
+    vertexShader: "varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }",
+    fragmentShader:
+      "varying vec3 vP; uniform vec3 top; uniform vec3 mid; uniform vec3 bot;" +
+      "void main(){ float h = normalize(vP).y;" +
+      " vec3 c = mix(bot, mid, smoothstep(-0.04, 0.28, h));" +
+      " c = mix(c, top, smoothstep(0.22, 0.72, h));" +
+      " gl_FragColor = vec4(c, 1.0); }",
+  })
+);
+scene.add(sky);
 
 // --- lighting: dusk sky + sun ---
 scene.add(new THREE.HemisphereLight(0x9fc0ff, 0x0a0f18, 0.6));
@@ -45,10 +66,26 @@ sun.shadow.camera.near = 10; sun.shadow.camera.far = 2500;
 (sun.shadow.camera as THREE.OrthographicCamera).bottom = -700;
 scene.add(sun);
 
+// --- procedural ground texture: subtle terrain speckle so it doesn't read as flat color ---
+function makeGroundTexture(): THREE.CanvasTexture {
+  const c = document.createElement("canvas"); c.width = c.height = 256;
+  const g = c.getContext("2d")!;
+  g.fillStyle = "#0d121a"; g.fillRect(0, 0, 256, 256);
+  let s = 1337; const rnd = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+  for (let i = 0; i < 1600; i++) {
+    g.fillStyle = `rgba(120,142,172,${0.03 + rnd() * 0.06})`;
+    g.fillRect(rnd() * 256, rnd() * 256, 1 + rnd() * 2, 1 + rnd() * 2);
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(28, 28);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
 // --- ground ---
 const ground = new THREE.Mesh(
   new THREE.PlaneGeometry(SITE.size * 2.4, SITE.size * 2.4),
-  new THREE.MeshStandardMaterial({ color: 0x12161d, roughness: 1 })
+  new THREE.MeshStandardMaterial({ color: 0x161b24, roughness: 1, map: makeGroundTexture() })
 );
 ground.rotation.x = -Math.PI / 2;
 ground.receiveShadow = true;
@@ -70,13 +107,73 @@ const noFly = new THREE.Mesh(
 );
 scene.add(noFly);
 
-// --- city ---
-const cityMat = new THREE.MeshStandardMaterial({ color: 0x2a3340, roughness: 0.85, metalness: 0.1 });
+// --- city: dusk facades with lit windows + varied rooftops ---
+// Emissive window map: black facade, a deterministic scatter of warm/cool lit windows.
+function makeWindowsTexture(seed: number): THREE.CanvasTexture {
+  const c = document.createElement("canvas"); c.width = 64; c.height = 128;
+  const g = c.getContext("2d")!;
+  g.fillStyle = "#000"; g.fillRect(0, 0, 64, 128);
+  let s = (seed >>> 0) || 1; const rnd = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+  const cols = 6, rows = 12, cw = 64 / cols, ch = 128 / rows;
+  for (let r = 0; r < rows; r++) for (let col = 0; col < cols; col++) {
+    if (rnd() < 0.5) {
+      g.fillStyle = rnd() < 0.72 ? "#ffcf8a" : "#bcdcff";
+      g.fillRect(col * cw + 1.5, r * ch + 2, cw - 3, ch - 4);
+    }
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+const windowVariants = Array.from({ length: 6 }, (_, i) => makeWindowsTexture(0x51c7 + i * 977));
+const facadeTones = [0x222b38, 0x2a3340, 0x1d2530, 0x2f3744, 0x252e3b];
+const roofMat = new THREE.MeshStandardMaterial({ color: 0x141a22, roughness: 0.9, metalness: 0.15 });
+const parapetMat = new THREE.MeshStandardMaterial({ color: 0x2b3340, roughness: 0.85 });
+
 for (const b of buildings()) {
-  const m = new THREE.Mesh(new THREE.BoxGeometry(b.w, b.h, b.d), cityMat);
-  m.position.set(b.x, b.h / 2, b.z);
-  m.castShadow = true; m.receiveShadow = true;
-  scene.add(m);
+  // per-building deterministic variety from its position
+  let s = ((Math.round(b.x) * 73856093) ^ (Math.round(b.z) * 19349663)) >>> 0;
+  const rnd = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+
+  const g = new THREE.Group();
+  const winTex = windowVariants[Math.floor(rnd() * windowVariants.length)].clone();
+  winTex.needsUpdate = true;
+  winTex.repeat.set(Math.max(1, Math.round(b.w / 13)), Math.max(2, Math.round(b.h / 13)));
+  const facadeMat = new THREE.MeshStandardMaterial({
+    color: facadeTones[Math.floor(rnd() * facadeTones.length)], roughness: 0.82, metalness: 0.12,
+    emissive: 0xffffff, emissiveMap: winTex, emissiveIntensity: 0.9,
+  });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(b.w, b.h, b.d), facadeMat);
+  body.position.y = b.h / 2; body.castShadow = true; body.receiveShadow = true; g.add(body);
+
+  // roof slab + parapet rim so the tops aren't open boxes
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(b.w, 1.5, b.d), roofMat);
+  roof.position.y = b.h + 0.75; roof.castShadow = true; g.add(roof);
+  const parapet = new THREE.Mesh(new THREE.BoxGeometry(b.w + 1.5, 3, b.d + 1.5), parapetMat);
+  parapet.position.y = b.h + 1.5; g.add(parapet);
+  const inner = new THREE.Mesh(new THREE.BoxGeometry(b.w - 3, 3.2, b.d - 3), roofMat);
+  inner.position.y = b.h + 1.6; g.add(inner); // recess inside the parapet
+
+  // varied rooftop equipment
+  const kind = rnd();
+  if (kind < 0.4) { // HVAC blocks
+    const n = 1 + Math.floor(rnd() * 2);
+    for (let i = 0; i < n; i++) {
+      const u = new THREE.Mesh(new THREE.BoxGeometry(4 + rnd() * 6, 3 + rnd() * 4, 4 + rnd() * 6), parapetMat);
+      u.position.set((rnd() - 0.5) * b.w * 0.5, b.h + 4, (rnd() - 0.5) * b.d * 0.5); u.castShadow = true; g.add(u);
+    }
+  } else if (kind < 0.7) { // water tank
+    const tank = new THREE.Mesh(new THREE.CylinderGeometry(3.5, 3.5, 7, 12), parapetMat);
+    tank.position.set((rnd() - 0.5) * b.w * 0.4, b.h + 5, (rnd() - 0.5) * b.d * 0.4); tank.castShadow = true; g.add(tank);
+  } else if (kind < 0.88) { // comms mast with a red obstruction light
+    const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 14, 6), roofMat);
+    mast.position.set((rnd() - 0.5) * b.w * 0.3, b.h + 7, (rnd() - 0.5) * b.d * 0.3); g.add(mast);
+    const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.9, 8, 8),
+      new THREE.MeshStandardMaterial({ color: 0xff3b3b, emissive: 0xff3b3b, emissiveIntensity: 2 }));
+    beacon.position.set(mast.position.x, b.h + 14, mast.position.z); g.add(beacon);
+  }
+  g.position.set(b.x, 0, b.z);
+  scene.add(g);
 }
 
 // --- sensors + coverage volumes ---

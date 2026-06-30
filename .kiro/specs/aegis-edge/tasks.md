@@ -7,7 +7,7 @@ if stuck. **The loop appends new tasks under "Discovered" as it learns.** Verify
 ## Wave 1 — realism of the sim (R1)
 - [x] T1. Better drone model: a proper quadrotor (arms, body, camera gimbal, nav lights), rotor
       motion blur, and bank-into-turn so motion reads as real flight. Replace the box body.
-- [ ] T2. City & terrain pass: window-lit building materials at dusk, varied rooftops, subtle
+- [x] T2. City & terrain pass: window-lit building materials at dusk, varied rooftops, subtle
       ground texture, and a soft atmospheric sky + horizon so it doesn't read as a void.
 - [ ] T3. Navigation realism: drones path-find around buildings (simple avoidance / altitude
       adjust), with smooth heading and speed easing along the spline.
@@ -41,6 +41,14 @@ if stuck. **The loop appends new tasks under "Discovered" as it learns.** Verify
 - [ ] D2. Answer-key unit test (`src/model/threatCall.test.ts`): assert 0427/0318 classify HIGH
       and 0192 (friendly) / 0205 (bird) are NOT promoted to threat — locks R2.4 so future realism
       passes can't silently break the classifier. Wire into existing `npm test`.
+- [ ] D3. Dusk scale-anchors: perimeter lights ringing the protected-asset plaza + a sparse field
+      of warm street-light points across the ground, so the city has human scale and the dusk read
+      lands (R1.1). Position-seeded, instanced/Points for cheapness; keep 60 fps.
+- [ ] D4. Starfield: a faint deterministic star Points cloud high in the sky dome (above the warm
+      band) to finish the dusk atmosphere without washing out threat markers (R1.1, R1.6).
+- [ ] D5. Living windows: cheap deterministic flicker so a small fraction of building windows
+      toggle on/off over time (modulate emissiveIntensity on a slow phase per building), giving the
+      skyline life without per-window cost. Keep build green and 60 fps (R1.6).
 ## Done when
 Waves 1-3 + Discovered checked or blocked; `npm run typecheck` + `npm run build` green; the
 scripted demo path works end-to-end. Local commits only (Wasi pushes in the morning).
