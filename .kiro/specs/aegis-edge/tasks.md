@@ -120,6 +120,18 @@ if stuck. **The loop appends new tasks under "Discovered" as it learns.** Verify
       "INCURSION — <id>" banner and, unless the operator picked a view in the last few seconds, snap the
       camera to the threat-axis preset on that track — the scripted R4.3 ingress beat made automatic.
       Deterministic + one-shot per track; classifier untouched; keep build + typecheck green and 60 fps.
+- [ ] D23. FPS / frame-time HUD readout: now that the bloom+vignette composer runs every frame
+      (R1.6), add a tiny smoothed FPS counter to #hud (EMA of 1/dt) so the operator/demo can confirm
+      the "keep 60 fps" target after the flashy pass. Cheap DOM write each frame; classifier untouched.
+- [ ] D24. Protected-asset rotating beacon: mount a slow-rotating warm/amber beacon (emissive cone or
+      a thin rotating light bar) atop the protected asset so the now-active bloom gives the core a
+      living glow and anchors the eye (R1.1 protected asset readable, R1.6 exploit the flashy pass).
+      Deterministic rotation from clock.elapsedTime; keep 60 fps and build + typecheck green.
+- [ ] D25. Bloom-aware HIGH pulse: gently oscillate the HIGH threat ring's emissive/opacity above the
+      bloom threshold so HIGH tracks visibly throb in the glow (R1.4 unmistakable), reusing the new
+      UnrealBloomPass — no new passes. Deterministic sin(t); cap so MED/LOW never cross the threshold.
+      Cheap; classifier untouched; keep build + typecheck green and 60 fps.
+
 ## Done when
 Waves 1-3 + Discovered checked or blocked; `npm run typecheck` + `npm run build` green; the
 scripted demo path works end-to-end. Local commits only (Wasi pushes in the morning).
