@@ -272,6 +272,17 @@ if stuck. **The loop appends new tasks under "Discovered" as it learns.** Verify
       a demo operator can jump straight to "show me a HIGH" without hunting in the 3D view. Dim/disable a
       row whose live count is 0 each frame (reuse the D11 tally). Pure DOM + existing selection plumbing;
       classifier untouched; keep build + typecheck green and 60 fps.
+- [ ] D52. Selected-drone airframe glow (builds on D12): when a track is selected, lift its drone hull
+      `body` emissiveIntensity above the resting 0.35 (gentle sin pulse, capped under the bloom
+      threshold so it glows but never blows out) so the chosen airframe itself reads as selected in
+      tight/close views where the ground reticle is off-screen — restore to base on deselect. Reuse the
+      D12 `selected` check in the per-track loop; the hull is already `parts.body`. Deterministic + cheap
+      (1 material write/frame for 1 track); classifier untouched; keep build + typecheck green and 60 fps.
+- [ ] D53. Escape-to-deselect (small UX gap from D12): add an Escape keydown that clears the current
+      selection — hide the panel, null `selected`, hide the leader overlay and the D12 reticle (which
+      already follows `selected`) — so the operator can drop a selection without clicking empty space.
+      Mirror the existing click-miss deselect path; do not disturb the demo's own select/deselect.
+      Pure DOM/state; classifier untouched; keep build + typecheck green.
 
 ## Done when
 Waves 1-3 + Discovered checked or blocked; `npm run typecheck` + `npm run build` green; the
