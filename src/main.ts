@@ -466,6 +466,36 @@ function paintUnit(cu: CoopUnitView, colorHex: number, labelText: string): void 
   cu.group.add(lab); cu.label = lab;
 }
 
+// --- EW jammer (Denied, DDIL): a directional red jamming sector that, when active, denies Link-16
+// entirely — the "enemy switched our datalink off" moment. The link denial itself is in the loop;
+// this is the visual. Placed off-axis and aimed at the AO so its wedge sweeps across the link path. ---
+const JAMMER_POS = { x: 360, z: 480 };
+const JAMMER_RED = 0xff4d3a;
+const jammerGroup = new THREE.Group();
+jammerGroup.position.set(JAMMER_POS.x, 0, JAMMER_POS.z);
+jammerGroup.visible = false;
+scene.add(jammerGroup);
+// emitter mast + warning beacon
+const jMast = new THREE.Mesh(
+  new THREE.CylinderGeometry(3, 6, 40, 8),
+  new THREE.MeshStandardMaterial({ color: 0x320b09, emissive: JAMMER_RED, emissiveIntensity: 0.6, roughness: 0.5 })
+);
+jMast.position.y = 20; jammerGroup.add(jMast);
+const jBeacon = new THREE.Mesh(new THREE.SphereGeometry(5, 12, 10), new THREE.MeshBasicMaterial({ color: JAMMER_RED }));
+jBeacon.position.y = 44; jammerGroup.add(jBeacon);
+// directional jamming wedge, symmetric about local +X, then yawed so +X points at the AO origin
+const jamAim = new THREE.Group();
+jamAim.rotation.y = Math.atan2(JAMMER_POS.z, -JAMMER_POS.x);   // aim +X toward (0,0) from the jammer
+jammerGroup.add(jamAim);
+const JAM_HALF = Math.PI / 5;     // ~36° half-angle → ~72° sector
+const jamWedge = new THREE.Mesh(
+  new THREE.CircleGeometry(820, 48, -JAM_HALF, JAM_HALF * 2),
+  new THREE.MeshBasicMaterial({ color: JAMMER_RED, transparent: true, opacity: 0.14, side: THREE.DoubleSide, depthWrite: false })
+);
+jamWedge.rotation.x = -Math.PI / 2; jamWedge.position.y = 2; jamAim.add(jamWedge);
+const jLabel = makeLabel("⚡ EW JAMMER · LINK DENIED", JAMMER_RED);
+jLabel.position.set(0, 58, 0); jammerGroup.add(jLabel);
+
 // --- coop drones: blue / red / green by FACTION (B3, DOD-6) ---
 // The coop air picture is a small set of faction-classified tracks the two units cooperate over.
 // Coloring is by `faction` (friendly=blue, hostile=red, neutral=green) — distinct from the single-
@@ -562,6 +592,7 @@ let lastPaintRadar: boolean | null = null;
 // live (real dt), so the operator can orbit/zoom a frozen air picture to inspect the moment.
 let paused = false;
 let simTime = 0;
+let jammerActive = false;                   // Denied (DDIL): enemy EW jammer forces Link-16 fully down
 const engaged = new Set<string>();          // shoot-and-shout: tracks already fired on (persists across ticks)
 // E1/E4: pending human-approval gates — a hostile that needs human approval pauses here; nothing
 // fires until `granted` reaches `needed`. DENY drops it into `deniedGates` so it never auto-re-arms.
@@ -676,10 +707,25 @@ function setRadarDown(down: boolean): void {
     : "Marine Beachhead radar back online — seeing the air picture on its own again.", simTime, down ? "bad" : "good");
   playRadarAlarm(down);
 }
+const jammerBtn = document.getElementById("jammerBtn") as HTMLButtonElement;
+function setJammer(on: boolean): void {
+  if (on === jammerActive) return;
+  jammerActive = on;
+  jammerBtn.classList.toggle("active", on);
+  jammerBtn.textContent = on ? "Jammer ON" : "Jammer OFF";
+  jammerGroup.visible = on;
+  document.body.classList.toggle("jammed", on);
+  pendingGates.clear(); loggedStatus.clear(); renderGates();   // re-decide with the link denied
+  logEvent(on ? "JAMMED" : "EW CLEAR", on
+    ? "enemy EW jammer active — Link-16 DENIED. Beachhead and Tank Column are isolated to their own sensors."
+    : "jamming has lifted — Link-16 can re-establish.", simTime, on ? "bad" : "good");
+  if (on) playLinkLost(); else playLink();
+}
 for (const b of modeBtns) b.onclick = () => setMode(b.dataset.mode as OperatorMode);
 for (const b of commsBtns) b.onclick = () => setComms(b.dataset.comms as CommsCase);
 for (const b of perspBtns) b.onclick = () => setPerspective(b.dataset.persp as UnitId);
 radarBeachBtn.onclick = () => setRadarDown(!radarDownBeach);
+jammerBtn.onclick = () => setJammer(!jammerActive);
 
 // --- audio: synthesized SFX (Web Audio API, no asset files → strict-CSP safe). The browser blocks
 // audio until a user gesture, so the context is created/resumed on the first pointer/key event. ---
@@ -1196,6 +1242,7 @@ addEventListener("keydown", (e) => {
   else if (k === "4") goView("sensor");
   else if (k === "f") setFollow(!followHostile);
   else if (k === "r") setRadarDown(!radarDownBeach);   // DDIL: knock the Beachhead radar offline / restore
+  else if (k === "j") setJammer(!jammerActive);        // Denied: enemy EW jammer denies Link-16
 });
 
 // --- T10: scripted demo timeline (the R4.3 narrative beat path) ---
@@ -1284,9 +1331,16 @@ function animate() {
   const beachUnit: Unit = radarDownBeach ? { ...MARINE_BEACHHEAD, radarRangeM: 0, eoirRangeM: 0 } : MARINE_BEACHHEAD;
   const colUnit = tankColumnAt(simTime, 1);
   const coopUnitObjs: [Unit, Unit] = [beachUnit, colUnit];
-  const link = coopLinkUpAt(simTime, commsCase, 1);
+  // Denied (DDIL): an active EW jammer forces Link-16 fully down regardless of range/comms case.
+  const link = !jammerActive && coopLinkUpAt(simTime, commsCase, 1);
   if (link) lastLinkUpSec = simTime;
   const health = commsHealth(link, simTime, lastLinkUpSec); // DOD-12 LIVE/DELAYED/FAILED
+  // jammer visuals: pulse the sector + beacon while active (frozen on pause via simTime)
+  if (jammerActive) {
+    const pulse = 0.10 + 0.12 * ((Math.sin(simTime * 6) + 1) / 2);
+    (jamWedge.material as THREE.MeshBasicMaterial).opacity = pulse;
+    jBeacon.scale.setScalar(0.7 + 0.5 * ((Math.sin(simTime * 9) + 1) / 2));
+  }
   // Convoy/base coloring: the Tank Column is amber and the Beachhead blue UNTIL Link-16 fuses them,
   // then the convoy matches the base (shared blue) — the at-a-glance "we are one picture now" cue. A
   // downed Beachhead radar overrides to red. Repaint only on a transition (cheap; not every frame).
@@ -1323,11 +1377,15 @@ function animate() {
     linkPos[3] = b.x; linkPos[4] = 14; linkPos[5] = b.z;
     (linkLine.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
     const lm = linkLine.material as THREE.LineBasicMaterial;
-    if (link) { lm.color.setHex(LINK_UP_COLOR); lm.opacity = 0.55 + 0.25 * ((Math.sin(simTime * 4) + 1) / 2); }
+    if (jammerActive) { lm.color.setHex(JAMMER_RED); lm.opacity = 0.25 + 0.35 * ((Math.sin(simTime * 12) + 1) / 2); } // jammed = angry red flicker
+    else if (link) { lm.color.setHex(LINK_UP_COLOR); lm.opacity = 0.55 + 0.25 * ((Math.sin(simTime * 4) + 1) / 2); }
     else { lm.color.setHex(LINK_DOWN_COLOR); lm.opacity = 0.18; }
     const gap = Math.round(Math.hypot(a.x - b.x, a.z - b.z));
     const inRange = gap <= 600;
-    if (link) {
+    if (jammerActive) {                   // Denied: enemy EW forces the link down regardless of range
+      link16El.textContent = `LINK-16 · ⚡ JAMMED · denied by enemy EW — units isolated`;
+      link16El.style.color = "#ff8a7a";
+    } else if (link) {
       link16El.textContent = `LINK-16 · ✓ ESTABLISHED · ${gap}m · pictures fused`;
       link16El.style.color = "#7df0b8";
     } else if (inRange) {                 // in range but comms dropped → Case-2 degradation (DOD-12)

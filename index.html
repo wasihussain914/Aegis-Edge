@@ -133,6 +133,13 @@
         box-shadow: 0 0 16px rgba(255,180,84,.35); }
       body.paused #pausedBadge { display: block; animation: pausePulse 1.4s ease-in-out infinite; }
       @keyframes pausePulse { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
+      #jammerBtn.active { background: #ff4d3a; border-color: #ff4d3a; color: #1a0606; }
+      #jamBadge { position: fixed; top: 14px; right: 16px; display: none; z-index: 50;
+        padding: 6px 13px; border-radius: 7px; font: 700 12px/1 ui-monospace, Menlo, monospace;
+        letter-spacing: 1.2px; color: #ffd2cc; background: rgba(46,8,6,.85); border: 1px solid #ff4d3a;
+        box-shadow: 0 0 16px rgba(255,77,58,.4); }
+      body.jammed #jamBadge { display: block; animation: jamPulse .7s steps(2) infinite; }
+      @keyframes jamPulse { 0%,100% { opacity: 1; } 50% { opacity: .5; } }
     </style>
   </head>
   <body>
@@ -167,6 +174,10 @@
           <span class="lbl">RADAR</span>
           <button class="cbtn active" id="radarBeachBtn">Beachhead UP</button>
         </div>
+        <div class="ctl" id="jammerCtl">
+          <span class="lbl">EW</span>
+          <button class="cbtn" id="jammerBtn">Jammer OFF</button>
+        </div>
         <div class="ctl" id="perspCtl">
           <span class="lbl">VIEW AS</span>
           <button class="cbtn active" data-persp="beachhead">Beachhead</button>
@@ -193,8 +204,9 @@
     </div>
     <div id="panel"></div>
     <div id="pausedBadge">⏸ EVALUATION PAUSED · camera live · Space to resume</div>
+    <div id="jamBadge">⚡ LINK-16 JAMMED · enemy EW · units isolated</div>
     <div id="demoCaption"></div>
-    <div id="hint">drag to orbit · scroll to zoom · click a track for the AI threat-call · views 1-4 · F follow · D demo · R radar-down (DDIL) · Space pause · 🔊 sound on
+    <div id="hint">drag to orbit · scroll to zoom · click a track for the AI threat-call · views 1-4 · F follow · D demo · R radar-down · J jammer (link denied) · Space pause · 🔊 sound on
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
