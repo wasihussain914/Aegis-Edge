@@ -223,6 +223,12 @@ if stuck. **The loop appends new tasks under "Discovered" as it learns.** Verify
       altitude drift (gentle climb/descend over its loop, on top of D6's bob) so it reads as an animal
       riding thermals rather than holding a fixed AGL like the UAS tracks — purely a deterministic add
       to its y in the per-truth block. Cheap; classifier untouched; keep 60 fps and build green.
+- [ ] D44. No-fly dwell timer (builds on D7): the per-frame ingress test already knows when a HIGH
+      track is inside `SITE.noFlyR` — accumulate per-track dwell seconds while inside (reset on exit)
+      and surface the worst current incursion in the HUD ("INCURSION <id> · <Ns> in zone"), a real
+      BDOC time-in-zone metric that quantifies D7's strobe/trail urgency and sharpens the R4.3 ingress
+      beat. Drive from the same `ingress` flag + dt; cheap DOM write; classifier untouched; keep
+      build + typecheck green and 60 fps.
 
 ## Done when
 Waves 1-3 + Discovered checked or blocked; `npm run typecheck` + `npm run build` green; the
