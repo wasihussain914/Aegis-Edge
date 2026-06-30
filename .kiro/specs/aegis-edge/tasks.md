@@ -24,7 +24,7 @@ if stuck. **The loop appends new tasks under "Discovered" as it learns.** Verify
       approve/deny that writes a ledger entry; LLM-off-kill-chain badge visible. (R3)
 
 ## Wave 3 — demo polish (R1.5, R4.3)
-- [ ] T8. Camera views: oblique-default, top-down, threat-axis, sensor-eye; smooth transitions;
+- [x] T8. Camera views: oblique-default, top-down, threat-axis, sensor-eye; smooth transitions;
       a "follow the hostile" toggle.
 - [ ] T9. Post-processing: bloom on threat markers + nav lights, mild SSAO/contact shadows, a
       vignette — the "flashy" pass. Keep 60 fps.

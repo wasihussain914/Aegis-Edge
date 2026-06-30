@@ -60,6 +60,14 @@
         margin-top: 8px; display: inline-block; padding: 1px 6px; border-radius: 999px;
         border: 1px solid #2f4a3a; background: #0d2018; }
       #hint { position: fixed; bottom: 14px; left: 16px; z-index: 10; font-size: 11px; color: #5f7799; }
+      /* --- T8 camera views --- */
+      #cams { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
+      #cams .cam { font: 600 10px/1 ui-sans-serif, system-ui, sans-serif; cursor: pointer;
+        padding: 5px 8px; border-radius: 6px; background: #14202f; color: #9db4d6;
+        border: 1px solid #314360; transition: all .12s; letter-spacing: .03em; }
+      #cams .cam:hover { border-color: #6f87ad; color: #cfe3ff; }
+      #cams .cam.active { background: #13314a; color: #8fd0ff; border-color: #4a9fe0; }
+      #cams #followBtn.active { background: #3a0d12; color: #ff8a94; border-color: #ff6b78; }
     </style>
   </head>
   <body>
@@ -69,9 +77,16 @@
       <div class="sub">Counter-UAS · 1 km² · explainable threat-call at the edge</div>
       <div class="sub" id="clock" style="margin-top:6px;"></div>
       <div class="sub" id="ledger" style="margin-top:2px;">audit ledger · 0 entries</div>
+      <div id="cams">
+        <button class="cam active" data-view="oblique">Oblique</button>
+        <button class="cam" data-view="top">Top</button>
+        <button class="cam" data-view="threat">Threat-axis</button>
+        <button class="cam" data-view="sensor">Sensor-eye</button>
+        <button id="followBtn" class="cam">▶ Follow hostile</button>
+      </div>
     </div>
     <div id="panel"></div>
-    <div id="hint">drag to orbit · scroll to zoom · click a track for the AI threat-call</div>
+    <div id="hint">drag to orbit · scroll to zoom · click a track for the AI threat-call · views 1-4 · F follow
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

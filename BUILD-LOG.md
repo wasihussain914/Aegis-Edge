@@ -96,3 +96,11 @@ Newest at the bottom. One line per iteration: date/time, task, how verified.
   never the classifier (untouched, off the LLM path). Verified: `npm run typecheck` + `npm run build`
   both green (dist 541.71 kB). Self-extended: D17 hash-chain the T7 ledger, D18 ledger replay
   timeline, D19 keyboard-driven demo gate.
+- 2026-06-30 01:5x CDT — T8 done (Chopper). Camera views + follow-hostile. Four eased presets
+  (easeInOutQuad, ~0.8s): Oblique (default), Top-down, Threat-axis (camera drops onto the
+  asset→top-threat ingress axis, behind+above the hostile, looking at the protected asset), and
+  Sensor-eye (from sensor[0] looking at the top threat). Added a "▶ Follow hostile" chase cam that
+  trails the most-threatening live track (HIGH>MED>LOW>NONE, ties by score) along its heading.
+  HUD button row + keyboard 1-4 / F. During transitions and follow the camera is driven directly
+  (manual lookAt, no damping fight); when settled it hands control back to OrbitControls so the
+  operator can orbit. classifier untouched. Verified: `npm run typecheck` + `npm run build` green.

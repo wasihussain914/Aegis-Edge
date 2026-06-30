@@ -518,6 +518,81 @@ function wireGate(l: Live): void {
   denyBtn.onclick = () => latch("DENIED", [armA ? "OPERATOR-A" : "", armB ? "OPERATOR-B" : ""].filter(Boolean));
 }
 
+// --- T8: camera views (oblique / top-down / threat-axis / sensor-eye) + follow-hostile ---
+// Each preset computes a (position, look-target) pair; goView() eases the camera there over ~0.8s.
+// While a transition runs or follow is on we drive the camera directly (manual lookAt) and skip
+// OrbitControls.update(); once settled we hand control back so the operator can orbit freely.
+type ViewName = "oblique" | "top" | "threat" | "sensor";
+const OBLIQUE_POS = new THREE.Vector3(620, 480, 620);
+const OBLIQUE_TGT = new THREE.Vector3(0, 60, 0);
+
+let camAnimT = 1;                                       // 1 = settled (no transition in progress)
+const camFrom = new THREE.Vector3(), camTo = new THREE.Vector3();
+const tgtFrom = new THREE.Vector3(), tgtTo = new THREE.Vector3();
+let followHostile = false;
+
+const THREAT_RANK: Record<string, number> = { HIGH: 3, MED: 2, LOW: 1, NONE: 0 };
+/** The most threatening live track (HIGH>MED>LOW>NONE, ties broken by score) — drives threat-axis + follow. */
+function topThreat(): Live | null {
+  let best: Live | null = null;
+  for (const l of live) {
+    const r = THREAT_RANK[l.cls.threat];
+    if (!best || r > THREAT_RANK[best.cls.threat] ||
+        (r === THREAT_RANK[best.cls.threat] && l.cls.score > best.cls.score)) best = l;
+  }
+  return best;
+}
+
+/** Camera position + look target for a named preset. */
+function viewFor(name: ViewName): { pos: THREE.Vector3; tgt: THREE.Vector3 } {
+  if (name === "top") return { pos: new THREE.Vector3(0, 1150, 0.1), tgt: new THREE.Vector3(0, 0, 0) };
+  if (name === "threat") {
+    const t = topThreat();
+    if (t) {
+      const p = t.group.position, asset = OBLIQUE_TGT.clone();
+      const axis = p.clone().sub(asset).setY(0);                 // asset -> threat ingress axis
+      if (axis.lengthSq() < 1) axis.set(0, 0, 1);
+      axis.normalize();
+      const pos = p.clone().add(axis.multiplyScalar(260)); pos.y = p.y + 150;  // behind + above the threat
+      return { pos, tgt: asset };
+    }
+  } else if (name === "sensor") {
+    const s = sensors[0], t = topThreat();
+    return { pos: new THREE.Vector3(s.x, 26, s.z), tgt: t ? t.group.position.clone() : OBLIQUE_TGT.clone() };
+  }
+  return { pos: OBLIQUE_POS.clone(), tgt: OBLIQUE_TGT.clone() };
+}
+
+function goView(name: ViewName): void {
+  followHostile = false;
+  const { pos, tgt } = viewFor(name);
+  camFrom.copy(camera.position); camTo.copy(pos);
+  tgtFrom.copy(controls.target); tgtTo.copy(tgt);
+  camAnimT = 0;
+  setActiveBtn(name);
+}
+
+const camBtns = Array.from(document.querySelectorAll<HTMLButtonElement>("#cams .cam[data-view]"));
+const followBtn = document.getElementById("followBtn") as HTMLButtonElement;
+function setActiveBtn(name: ViewName | null): void {
+  for (const b of camBtns) b.classList.toggle("active", b.dataset.view === name);
+  followBtn.classList.toggle("active", followHostile);
+}
+for (const b of camBtns) b.onclick = () => goView(b.dataset.view as ViewName);
+followBtn.onclick = () => {
+  followHostile = !followHostile;
+  if (followHostile) { camAnimT = 1; setActiveBtn(null); }
+  else goView("oblique");
+};
+addEventListener("keydown", (e) => {
+  const k = e.key.toLowerCase();
+  if (k === "1") goView("oblique");
+  else if (k === "2") goView("top");
+  else if (k === "3") goView("threat");
+  else if (k === "4") goView("sensor");
+  else if (k === "f") followBtn.click();
+});
+
 // --- loop ---
 const clock = new THREE.Clock();
 const clockEl = document.getElementById("clock")!;
@@ -596,7 +671,27 @@ function animate() {
       overlay.style.display = "";
     } else { overlay.style.display = "none"; }
   } else { overlay.style.display = "none"; }
-  controls.update();
+  // T8: drive the camera — eased preset transitions and the follow-hostile chase cam run the
+  // camera directly; otherwise OrbitControls (with damping) is in charge.
+  if (camAnimT < 1) {
+    camAnimT = Math.min(1, camAnimT + dt / 0.8);
+    const e = camAnimT < 0.5 ? 2 * camAnimT * camAnimT : 1 - Math.pow(-2 * camAnimT + 2, 2) / 2; // easeInOutQuad
+    camera.position.lerpVectors(camFrom, camTo, e);
+    controls.target.lerpVectors(tgtFrom, tgtTo, e);
+  } else if (followHostile) {
+    const t = topThreat();
+    if (t) {
+      const p = t.group.position;
+      const back = t.prevDir.clone().setY(0);                       // heading; trail behind it
+      if (back.lengthSq() < 1) back.set(0, 0, 1);
+      back.normalize();
+      const desired = p.clone().sub(back.multiplyScalar(70)); desired.y = p.y + 38;
+      camera.position.lerp(desired, Math.min(1, dt * 2.2));
+      controls.target.lerp(p, Math.min(1, dt * 3));
+    }
+  }
+  if (camAnimT >= 1 && !followHostile) controls.update();          // operator orbit + damping
+  else camera.lookAt(controls.target);
   clockEl.textContent = `T+${clock.elapsedTime.toFixed(1)}s · ${live.length} tracks · ${live.filter((l) => l.cls.threat === "HIGH").length} HIGH`;
   renderer.render(scene, camera);
 }
