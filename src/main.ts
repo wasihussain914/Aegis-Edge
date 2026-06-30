@@ -232,6 +232,63 @@ for (const b of cityBuildings) {
   scene.add(g);
 }
 
+// --- D3: dusk scale-anchors — perimeter lights round the plaza + a sparse street-light field ---
+// Warm point lights give the city human scale and land the dusk read. Deterministic (position-seeded),
+// drawn as cheap THREE.Points with a soft round glow sprite so the bloom pass makes them bloom. The
+// street field skips building footprints and the asset plaza; perimeter lights ring the protected asset.
+function makeGlowSprite(): THREE.CanvasTexture {
+  const c = document.createElement("canvas"); c.width = c.height = 32;
+  const g = c.getContext("2d")!;
+  const grad = g.createRadialGradient(16, 16, 0, 16, 16, 16);
+  grad.addColorStop(0, "rgba(255,255,255,1)");
+  grad.addColorStop(0.35, "rgba(255,210,150,0.85)");
+  grad.addColorStop(1, "rgba(255,180,110,0)");
+  g.fillStyle = grad; g.fillRect(0, 0, 32, 32);
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+const glowSprite = makeGlowSprite();
+
+// sparse street-light field scattered across the ground (position-seeded, footprint/plaza-avoiding)
+{
+  let s = 0x5eed1; const rnd = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+  const pts: number[] = [];
+  let placed = 0, guard = 0;
+  while (placed < 150 && guard++ < 4000) {
+    const x = (rnd() - 0.5) * SITE.size * 1.9;
+    const z = (rnd() - 0.5) * SITE.size * 1.9;
+    if (Math.hypot(x, z) < SITE.protectedAsset.r + 20) continue;          // keep the plaza clear
+    let inBuilding = false;
+    for (const b of cityBoxes) {
+      if (Math.abs(x - b.x) < b.hw && Math.abs(z - b.z) < b.hd) { inBuilding = true; break; }
+    }
+    if (inBuilding) continue;
+    pts.push(x, 3 + rnd() * 2, z); placed++;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
+  scene.add(new THREE.Points(geo, new THREE.PointsMaterial({
+    map: glowSprite, color: 0xffb169, size: 14, sizeAttenuation: true,
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.9,
+  })));
+}
+
+// perimeter lights ringing the protected-asset plaza
+{
+  const ringPts: number[] = [];
+  const N = 28, r = SITE.protectedAsset.r + 12;
+  for (let i = 0; i < N; i++) {
+    const a = (i / N) * Math.PI * 2;
+    ringPts.push(Math.cos(a) * r, 6, Math.sin(a) * r);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(ringPts, 3));
+  scene.add(new THREE.Points(geo, new THREE.PointsMaterial({
+    map: glowSprite, color: 0xffd9a0, size: 16, sizeAttenuation: true,
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.95,
+  })));
+}
+
 // --- sensors: distinct coverage per modality + animated scan + live detection lines ---
 // radar = 360° dome with a rotating sweep sector; rf = a bearing wedge that oscillates
 // (DF antenna); eoir = a narrow camera frustum cone that pans. Each sensor "sees" a track

@@ -143,3 +143,11 @@ Newest at the bottom. One line per iteration: date/time, task, how verified.
   tsx). Build needed Node types for `node:test`/`node:assert`: added `@types/node` devDep and put
   `"node"` in tsconfig `types` (kept `"three"`; DOM globals unaffected). Verified: `npm test` 5/5
   pass, `npm run typecheck` + `npm run build` both green. R2.4 locked.
+- 2026-06-30 03:2x CDT — D3 done (Chopper). Dusk scale-anchors so the city reads with human scale at
+  dusk. Added two cheap deterministic `THREE.Points` clouds drawn with a soft radial glow sprite
+  (warm white→amber→transparent canvas texture) and AdditiveBlending so the T9 bloom pass makes them
+  glow: (1) a sparse street-light field — up to 150 warm points scattered across the ground via a
+  position-seeded LCG, skipping building footprints (`cityBoxes`) and the protected-asset plaza; and
+  (2) a 28-point perimeter ring of brighter warm lights at `protectedAsset.r + 12` round the plaza.
+  No per-frame cost (static geometry, sizeAttenuation handles distance). Classifier untouched.
+  Verified: `npm run typecheck` + `npm run build` both green. R1.1 dusk read landed.

@@ -44,7 +44,7 @@ if stuck. **The loop appends new tasks under "Discovered" as it learns.** Verify
 - [x] D2. Answer-key unit test (`src/model/threatCall.test.ts`): assert 0427/0318 classify HIGH
       and 0192 (friendly) / 0205 (bird) are NOT promoted to threat — locks R2.4 so future realism
       passes can't silently break the classifier. Wire into existing `npm test`.
-- [ ] D3. Dusk scale-anchors: perimeter lights ringing the protected-asset plaza + a sparse field
+- [x] D3. Dusk scale-anchors: perimeter lights ringing the protected-asset plaza + a sparse field
       of warm street-light points across the ground, so the city has human scale and the dusk read
       lands (R1.1). Position-seeded, instanced/Points for cheapness; keep 60 fps.
 - [ ] D4. Starfield: a faint deterministic star Points cloud high in the sky dome (above the warm
