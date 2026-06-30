@@ -38,3 +38,17 @@ Newest at the bottom. One line per iteration: date/time, task, how verified.
   pts) instead of raw waypoints. Removed the per-frame `pathPoint`/curve rebuild and the bogus
   `len=1400` constant. Classifier untouched. Verified: `npm run typecheck` + `npm run build` both
   green (dist 525.98 kB).
+- 2026-06-30 00:30 CDT — T4 done (Chopper). Sensor coverage polish + live sensor↔track
+  association. The three sensors now render distinct, modality-true coverage instead of three
+  identical wireframe domes: RAD-1 keeps a faint full-range dome but adds a rotating ground sweep
+  sector spinning a true 360° (0.9 rad/s); RF-1 is a DF bearing wedge (±0.34 rad) that oscillates
+  its bearing over ±1.5 rad; EO-1 is a narrow EO/IR camera frustum (ConeGeometry, apex at the
+  sensor, ~0.2 rad half-angle) that pans ±1.2 rad. Each sensor's animated element lives in a per-
+  sensor yaw group driven each frame from `bearing` (radar spins, rf/eoir bounce via sweepDir).
+  Added a detection-line pool — one Float32 2-pt THREE.Line per (sensor, track), colored by
+  modality — toggled each frame: a sensor "sees" a track only when it's in range AND the track
+  falls inside the modality's current scan lobe (acos of the dot between the track bearing and the
+  beam direction `(cos b, −sin b)` ≤ halfAngle). So detection lines pop on as a beam crosses a
+  drone, visibly showing which sensors hold each track right now — and coverage gaps read honestly
+  when no beam is on a track. Classifier untouched (Bedrock still narrate-only). Verified:
+  `npm run typecheck` + `npm run build` both green (dist 528.02 kB).

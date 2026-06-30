@@ -11,7 +11,7 @@ if stuck. **The loop appends new tasks under "Discovered" as it learns.** Verify
       ground texture, and a soft atmospheric sky + horizon so it doesn't read as a void.
 - [x] T3. Navigation realism: drones path-find around buildings (simple avoidance / altitude
       adjust), with smooth heading and speed easing along the spline.
-- [ ] T4. Sensor coverage polish: distinct radar dome / RF bearing wedge / EO-IR frustum with
+- [x] T4. Sensor coverage polish: distinct radar dome / RF bearing wedge / EO-IR frustum with
       subtle scan animation; show which sensors currently "see" each track.
 
 ## Wave 2 — integration + readability (R2, R1.4)

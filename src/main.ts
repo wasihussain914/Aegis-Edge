@@ -8,7 +8,7 @@
  */
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { buildings, sensors, tracks, SITE, type DroneTrack } from "./data/scenario.js";
+import { buildings, sensors, tracks, SITE, type DroneTrack, type SensorSite } from "./data/scenario.js";
 import { classify, explainTemplate, type Classification } from "./model/threatCall.js";
 
 const THREAT_COLOR: Record<string, number> = { HIGH: 0xff4d5e, MED: 0xffc14d, LOW: 0x5dd6a0, NONE: 0x6fa8ff };
@@ -192,15 +192,59 @@ for (const b of cityBuildings) {
   scene.add(g);
 }
 
-// --- sensors + coverage volumes ---
+// --- sensors: distinct coverage per modality + animated scan + live detection lines ---
+// radar = 360° dome with a rotating sweep sector; rf = a bearing wedge that oscillates
+// (DF antenna); eoir = a narrow camera frustum cone that pans. Each sensor "sees" a track
+// only when the track is in range AND inside the modality's current scan lobe — so detection
+// lines pop on as a beam crosses a drone, showing live sensor↔track association.
+const MOD_COLOR = { radar: 0x2f6fb0, rf: 0x8a5cff, eoir: 0x37b6a0 } as const;
+interface LiveSensor {
+  site: SensorSite; yaw: THREE.Group; mode: "radar" | "rf" | "eoir";
+  bearing: number; sweepDir: number; halfAngle: number; sweepSpan: number; spin: number;
+}
+const liveSensors: LiveSensor[] = [];
+
 for (const s of sensors) {
-  const post = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 16), new THREE.MeshStandardMaterial({ color: 0x3da3ff }));
+  const col = MOD_COLOR[s.modality];
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 16), new THREE.MeshStandardMaterial({ color: col }));
   post.position.set(s.x, 8, s.z); scene.add(post);
-  const dome = new THREE.Mesh(
-    new THREE.SphereGeometry(s.rangeM, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2.4),
-    new THREE.MeshBasicMaterial({ color: s.modality === "radar" ? 0x2f6fb0 : s.modality === "rf" ? 0x8a5cff : 0x37b6a0, wireframe: true, transparent: true, opacity: 0.06 })
-  );
-  dome.position.set(s.x, 0, s.z); scene.add(dome);
+
+  const grp = new THREE.Group(); grp.position.set(s.x, 0, s.z); scene.add(grp);
+  const yaw = new THREE.Group(); grp.add(yaw);
+
+  let halfAngle: number, sweepSpan: number, spin: number;
+  if (s.modality === "radar") {
+    halfAngle = 0.6; sweepSpan = 0; spin = 0.9;            // continuous 360° rotation
+    // faint full-range coverage dome
+    const dome = new THREE.Mesh(
+      new THREE.SphereGeometry(s.rangeM, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2.4),
+      new THREE.MeshBasicMaterial({ color: col, wireframe: true, transparent: true, opacity: 0.05 })
+    );
+    grp.add(dome);
+    // rotating sweep sector painted on the ground
+    const sweep = new THREE.Mesh(
+      new THREE.CircleGeometry(s.rangeM, 40, -0.18, 0.36),
+      new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.14, side: THREE.DoubleSide, depthWrite: false })
+    );
+    sweep.rotation.x = -Math.PI / 2; sweep.position.y = 5; yaw.add(sweep);
+  } else if (s.modality === "rf") {
+    halfAngle = 0.34; sweepSpan = 1.5; spin = 0;           // DF antenna oscillates its bearing
+    const wedge = new THREE.Mesh(
+      new THREE.CircleGeometry(s.rangeM, 32, -halfAngle, halfAngle * 2),
+      new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.10, side: THREE.DoubleSide, depthWrite: false })
+    );
+    wedge.rotation.x = -Math.PI / 2; wedge.position.y = 4; yaw.add(wedge);
+  } else {
+    halfAngle = 0.2; sweepSpan = 1.2; spin = 0;            // EO/IR camera pans a narrow frustum
+    const cone = new THREE.Mesh(
+      new THREE.ConeGeometry(s.rangeM * Math.tan(halfAngle), s.rangeM, 20, 1, true),
+      new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.1, side: THREE.DoubleSide, depthWrite: false })
+    );
+    // cone axis is +Y (apex at top); lay it on its side so the apex sits at the sensor and the
+    // FOV opens outward along the yaw group's +X (the beam direction we test against below).
+    cone.rotation.z = Math.PI / 2; cone.position.set(s.rangeM / 2, 22, 0); yaw.add(cone);
+  }
+  liveSensors.push({ site: s, yaw, mode: s.modality, bearing: 0, sweepDir: 1, halfAngle, sweepSpan, spin });
 }
 
 // --- drones ---
@@ -284,6 +328,18 @@ for (const t of tracks()) {
   live.push({ track: t, ...parts, trail, cls, t: Math.random(), bank: 0, prevDir: new THREE.Vector3(0, 0, 1), curve, curveLen, climb: 0 });
 }
 
+// --- live detection lines: one per (sensor, track); shown only while that sensor sees the track ---
+interface DetLine { line: THREE.Line; s: LiveSensor; l: Live; pos: Float32Array; }
+const detLines: DetLine[] = [];
+for (const s of liveSensors) for (const l of live) {
+  const pos = new Float32Array(6);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: MOD_COLOR[s.mode], transparent: true, opacity: 0.45 }));
+  line.visible = false; line.frustumCulled = false; scene.add(line);
+  detLines.push({ line, s, l, pos });
+}
+
 // --- interaction: click a drone -> threat-call panel ---
 const ray = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
@@ -338,6 +394,33 @@ function animate() {
     l.t += (l.track.speedMps * speedScale * dt) / l.curveLen;
     for (const r of l.rotors) r.rotation.y += dt * 42;                  // spin rotors
     l.strobe.emissiveIntensity = Math.sin(clock.elapsedTime * 8 + l.t * 12) > 0.7 ? 3.2 : 0.12;
+  }
+  // advance each sensor's scan (radar spins 360°; rf/eoir oscillate over their sweepSpan)
+  for (const s of liveSensors) {
+    if (s.spin) s.bearing = (s.bearing + dt * s.spin) % (Math.PI * 2);
+    else {
+      s.bearing += s.sweepDir * dt * 0.5;
+      if (s.bearing > s.sweepSpan) { s.bearing = s.sweepSpan; s.sweepDir = -1; }
+      else if (s.bearing < -s.sweepSpan) { s.bearing = -s.sweepSpan; s.sweepDir = 1; }
+    }
+    s.yaw.rotation.y = s.bearing;
+  }
+  // detection lines: a sensor sees a track when it's in range AND inside the current scan lobe
+  for (const d of detLines) {
+    const tp = d.l.group.position;
+    const dx = tp.x - d.s.site.x, dz = tp.z - d.s.site.z;
+    const range = Math.hypot(dx, dz);
+    let seen = range <= d.s.site.rangeM;
+    if (seen) {
+      const dot = (dx * Math.cos(d.s.bearing) + dz * -Math.sin(d.s.bearing)) / (range || 1);
+      seen = Math.acos(THREE.MathUtils.clamp(dot, -1, 1)) <= d.s.halfAngle;
+    }
+    d.line.visible = seen;
+    if (seen) {
+      d.pos[0] = d.s.site.x; d.pos[1] = 9; d.pos[2] = d.s.site.z;
+      d.pos[3] = tp.x; d.pos[4] = tp.y; d.pos[5] = tp.z;
+      (d.line.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
+    }
   }
   controls.update();
   clockEl.textContent = `T+${clock.elapsedTime.toFixed(1)}s · ${live.length} tracks · ${live.filter((l) => l.cls.threat === "HIGH").length} HIGH`;
