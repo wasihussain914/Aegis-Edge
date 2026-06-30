@@ -15,7 +15,7 @@ if stuck. **The loop appends new tasks under "Discovered" as it learns.** Verify
       subtle scan animation; show which sensors currently "see" each track.
 
 ## Wave 2 — integration + readability (R2, R1.4)
-- [ ] T5. Threat overlays: per-track label (id/class/threat), a pulsing red ring under HIGH
+- [x] T5. Threat overlays: per-track label (id/class/threat), a pulsing red ring under HIGH
       tracks, and a leader line to the panel on selection.
 - [ ] T6. Bedrock explanation wired into the panel: on click, call a tiny backend/CLI bridge that
       runs `model/threatCall` + Bedrock (Nova) for the narrative; fall back to the offline
@@ -70,6 +70,17 @@ if stuck. **The loop appends new tasks under "Discovered" as it learns.** Verify
       in/out (and optionally taper toward the track) so a sweep "acquiring" a track reads smoothly
       rather than flickering — animate material.opacity toward a target each frame (R1.3 polish).
       Cheap; classifier untouched. Keep build green and 60 fps.
+- [ ] D11. Threat legend in the HUD: a compact color key (HIGH/MED/LOW/NONE swatches) with the live
+      per-level track count, so a viewer can decode the threat coloring at a glance without clicking
+      (R1.4 HIGH unmistakable, R2 readability). Update counts from `live` each frame; cheap DOM
+      write into the existing #hud block. Classifier untouched.
+- [ ] D12. Selected-track emphasis in 3D: when a track is selected, add a thin animated selection
+      ring around its drone (distinct from the HIGH threat ring) and gently scale-pulse its label so
+      the chosen track is obvious in the scene, reinforcing the leader line (R2 readability). Clear
+      on deselect. Deterministic + cheap; keep build green and 60 fps.
+- [ ] D13. Label declutter by distance: fade each track label's sprite opacity with camera distance
+      (full near, dim far) so a busy command view stays readable and the overlays never wash out the
+      threat markers (R1.6, R2). Compute per frame from camera↔drone distance; cheap; 60 fps.
 ## Done when
 Waves 1-3 + Discovered checked or blocked; `npm run typecheck` + `npm run build` green; the
 scripted demo path works end-to-end. Local commits only (Wasi pushes in the morning).

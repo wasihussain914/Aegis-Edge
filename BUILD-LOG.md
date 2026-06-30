@@ -52,3 +52,15 @@ Newest at the bottom. One line per iteration: date/time, task, how verified.
   drone, visibly showing which sensors hold each track right now — and coverage gaps read honestly
   when no beam is on a track. Classifier untouched (Bedrock still narrate-only). Verified:
   `npm run typecheck` + `npm run build` both green (dist 528.02 kB).
+- 2026-06-30 00:55 CDT — T5 done (Chopper). Threat overlays for at-a-glance readability. Each
+  track now carries a floating canvas-sprite label (`id · CLASS · THREAT`, e.g. `0427 · DRONE ·
+  HIGH`) tinted by threat color, built once via `makeLabel` (rounded pill, depthTest-off,
+  renderOrder 999) and repositioned 15 m above the drone each frame. HIGH tracks (0427, 0318) also
+  get a pulsing ground ring (RingGeometry, threat-red) that tracks the drone's x/z and breathes via
+  a sin(t·4) pulse on scale (1→1.7×) and opacity (0.2→0.7) so penetrators are unmistakable. On
+  click, a dashed SVG leader line (fixed full-screen overlay, z-index 9, pointer-events none) plus
+  a small ring at the track end connects the selected drone — projected to screen via
+  `v.project(camera)` each frame, hidden when behind the camera (v.z≥1) — to the open threat-call
+  panel's top-left, colored to match the track's threat. Click-empty clears selection and hides the
+  overlay. Classifier untouched (Bedrock still narrate-only). Verified: `npm run typecheck` +
+  `npm run build` both green (dist 538.81 kB).

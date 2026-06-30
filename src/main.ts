@@ -253,6 +253,7 @@ interface Live {
   rotors: THREE.Object3D[]; strobe: THREE.MeshStandardMaterial; trail: THREE.Line;
   cls: Classification; t: number; bank: number; prevDir: THREE.Vector3;
   curve: THREE.CatmullRomCurve3; curveLen: number; climb: number;
+  label: THREE.Sprite; ring?: THREE.Mesh;
 }
 const live: Live[] = [];
 
@@ -312,6 +313,32 @@ function makeDrone(color: number): DroneParts {
   return { group, frame, body, rotors, strobe };
 }
 
+/** Floating canvas-sprite label (id · class · threat), tinted by threat color. Built once per track. */
+function makeLabel(text: string, color: number): THREE.Sprite {
+  const pad = 14, fs = 30, h = 46;
+  const c = document.createElement("canvas");
+  const ctx = c.getContext("2d")!;
+  const font = `bold ${fs}px ui-sans-serif, system-ui, "Segoe UI", sans-serif`;
+  ctx.font = font;
+  const w = Math.ceil(ctx.measureText(text).width) + pad * 2;
+  c.width = w; c.height = h;
+  ctx.font = font; ctx.textBaseline = "middle";
+  const hex = "#" + (color & 0xffffff).toString(16).padStart(6, "0");
+  const r = 11, x0 = 1.5, y0 = 1.5, x1 = w - 1.5, y1 = h - 1.5;   // rounded pill outline
+  ctx.beginPath(); ctx.moveTo(x0 + r, y0);
+  ctx.arcTo(x1, y0, x1, y1, r); ctx.arcTo(x1, y1, x0, y1, r);
+  ctx.arcTo(x0, y1, x0, y0, r); ctx.arcTo(x0, y0, x1, y0, r);
+  ctx.closePath();
+  ctx.fillStyle = "rgba(8,12,20,0.82)"; ctx.fill();
+  ctx.lineWidth = 2; ctx.strokeStyle = hex; ctx.stroke();
+  ctx.fillStyle = hex; ctx.fillText(text, pad, h / 2 + 1);
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false }));
+  sp.scale.set(w * 0.3, h * 0.3, 1);
+  sp.renderOrder = 999;
+  return sp;
+}
+
 for (const t of tracks()) {
   const cls = classify(t.features);
   const color = THREAT_COLOR[cls.threat];
@@ -325,7 +352,18 @@ for (const t of tracks()) {
   const trailGeo = new THREE.BufferGeometry().setFromPoints(curve.getSpacedPoints(80));
   const trail = new THREE.Line(trailGeo, new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.35 }));
   scene.add(trail);
-  live.push({ track: t, ...parts, trail, cls, t: Math.random(), bank: 0, prevDir: new THREE.Vector3(0, 0, 1), curve, curveLen, climb: 0 });
+  // per-track floating label + (for HIGH tracks) a pulsing ground ring
+  const label = makeLabel(`${t.id} · ${cls.class.toUpperCase()} · ${cls.threat}`, color);
+  scene.add(label);
+  let ring: THREE.Mesh | undefined;
+  if (cls.threat === "HIGH") {
+    ring = new THREE.Mesh(
+      new THREE.RingGeometry(9, 13, 48),
+      new THREE.MeshBasicMaterial({ color: THREAT_COLOR.HIGH, transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false })
+    );
+    ring.rotation.x = -Math.PI / 2; ring.position.y = 2; scene.add(ring);
+  }
+  live.push({ track: t, ...parts, trail, cls, t: Math.random(), bank: 0, prevDir: new THREE.Vector3(0, 0, 1), curve, curveLen, climb: 0, label, ring });
 }
 
 // --- live detection lines: one per (sensor, track); shown only while that sensor sees the track ---
@@ -344,12 +382,29 @@ for (const s of liveSensors) for (const l of live) {
 const ray = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 const panel = document.getElementById("panel")!;
+
+// leader-line overlay: a dashed line + ring connecting the selected track to the panel
+const SVGNS = "http://www.w3.org/2000/svg";
+const overlay = document.createElementNS(SVGNS, "svg");
+overlay.setAttribute("style", "position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:9;");
+const leader = document.createElementNS(SVGNS, "line");
+leader.setAttribute("stroke-width", "1.5"); leader.setAttribute("stroke-dasharray", "5 4");
+const leaderDot = document.createElementNS(SVGNS, "circle");
+leaderDot.setAttribute("r", "5"); leaderDot.setAttribute("fill", "none"); leaderDot.setAttribute("stroke-width", "1.5");
+overlay.append(leader, leaderDot);
+overlay.style.display = "none";
+document.body.appendChild(overlay);
+let selected: Live | null = null;
+
 addEventListener("click", (e) => {
   mouse.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
   ray.setFromCamera(mouse, camera);
   const hit = ray.intersectObjects(live.map((l) => l.body), false)[0];
-  if (!hit) { panel.classList.remove("show"); return; }
+  if (!hit) { panel.classList.remove("show"); selected = null; overlay.style.display = "none"; return; }
   const l = live.find((x) => x.body === hit.object)!;
+  selected = l;
+  const hex = "#" + (THREAT_COLOR[l.cls.threat] & 0xffffff).toString(16).padStart(6, "0");
+  leader.setAttribute("stroke", hex); leaderDot.setAttribute("stroke", hex);
   showPanel(l.track.id, l.cls);
 });
 
@@ -394,6 +449,14 @@ function animate() {
     l.t += (l.track.speedMps * speedScale * dt) / l.curveLen;
     for (const r of l.rotors) r.rotation.y += dt * 42;                  // spin rotors
     l.strobe.emissiveIntensity = Math.sin(clock.elapsedTime * 8 + l.t * 12) > 0.7 ? 3.2 : 0.12;
+    // floating label rides above the drone; HIGH tracks get a pulsing ground ring
+    l.label.position.set(p.x, p.y + 15, p.z);
+    if (l.ring) {
+      const pulse = (Math.sin(clock.elapsedTime * 4) + 1) / 2;
+      l.ring.position.set(p.x, 2, p.z);
+      l.ring.scale.setScalar(1 + pulse * 0.7);
+      (l.ring.material as THREE.MeshBasicMaterial).opacity = 0.2 + pulse * 0.5;
+    }
   }
   // advance each sensor's scan (radar spins 360°; rf/eoir oscillate over their sweepSpan)
   for (const s of liveSensors) {
@@ -422,6 +485,18 @@ function animate() {
       (d.line.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
     }
   }
+  // leader line: project the selected track to screen and connect it to the open panel
+  if (selected && panel.classList.contains("show")) {
+    const v = selected.group.position.clone(); v.y += 10; v.project(camera);
+    if (v.z < 1) {
+      const sx = (v.x * 0.5 + 0.5) * innerWidth, sy = (-v.y * 0.5 + 0.5) * innerHeight;
+      const rect = panel.getBoundingClientRect();
+      leader.setAttribute("x1", sx.toFixed(1)); leader.setAttribute("y1", sy.toFixed(1));
+      leader.setAttribute("x2", rect.left.toFixed(1)); leader.setAttribute("y2", (rect.top + 26).toFixed(1));
+      leaderDot.setAttribute("cx", sx.toFixed(1)); leaderDot.setAttribute("cy", sy.toFixed(1));
+      overlay.style.display = "";
+    } else { overlay.style.display = "none"; }
+  } else { overlay.style.display = "none"; }
   controls.update();
   clockEl.textContent = `T+${clock.elapsedTime.toFixed(1)}s · ${live.length} tracks · ${live.filter((l) => l.cls.threat === "HIGH").length} HIGH`;
   renderer.render(scene, camera);
