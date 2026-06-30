@@ -1,0 +1,29 @@
+{
+  "name": "wolfberg-cuas-3d",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Counter-UAS 3D operator interface — autonomous, multi-layered FOB air-defense visualization on the Wolfberg governed runtime.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@react-three/drei": "^9.114.0",
+    "@react-three/fiber": "^8.17.10",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "three": "^0.169.0",
+    "zustand": "^5.0.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@types/three": "^0.169.0",
+    "@vitejs/plugin-react": "^4.3.3",
+    "typescript": "^5.7.2",
+    "vite": "^5.4.10"
+  }
+}
