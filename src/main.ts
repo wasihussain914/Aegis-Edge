@@ -455,16 +455,22 @@ overlay.style.display = "none";
 document.body.appendChild(overlay);
 let selected: Live | null = null;
 
+/** Select a track: tint the leader line to its threat color and open the threat-call panel.
+ *  Shared by the click handler and the T10 scripted demo so both drive selection identically. */
+function selectTrack(l: Live): void {
+  selected = l;
+  const hex = "#" + (THREAT_COLOR[l.cls.threat] & 0xffffff).toString(16).padStart(6, "0");
+  leader.setAttribute("stroke", hex); leaderDot.setAttribute("stroke", hex);
+  showPanel(l);
+}
+
 addEventListener("click", (e) => {
   mouse.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
   ray.setFromCamera(mouse, camera);
   const hit = ray.intersectObjects(live.map((l) => l.body), false)[0];
   if (!hit) { panel.classList.remove("show"); selected = null; overlay.style.display = "none"; return; }
-  const l = live.find((x) => x.body === hit.object)!;
-  selected = l;
-  const hex = "#" + (THREAT_COLOR[l.cls.threat] & 0xffffff).toString(16).padStart(6, "0");
-  leader.setAttribute("stroke", hex); leaderDot.setAttribute("stroke", hex);
-  showPanel(l);
+  stopDemo();                                        // operator takes over from the scripted run
+  selectTrack(live.find((x) => x.body === hit.object)!);
 });
 
 // Monotonic token so a slow Bedrock reply for an old click can't overwrite a newer selection.
@@ -617,20 +623,67 @@ function setActiveBtn(name: ViewName | null): void {
   for (const b of camBtns) b.classList.toggle("active", b.dataset.view === name);
   followBtn.classList.toggle("active", followHostile);
 }
-for (const b of camBtns) b.onclick = () => goView(b.dataset.view as ViewName);
-followBtn.onclick = () => {
-  followHostile = !followHostile;
-  if (followHostile) { camAnimT = 1; setActiveBtn(null); }
+for (const b of camBtns) b.onclick = () => { stopDemo(); goView(b.dataset.view as ViewName); };
+/** Toggle/set the follow-hostile chase cam (shared by the button, the F key, and the demo). */
+function setFollow(on: boolean): void {
+  followHostile = on;
+  if (on) { camAnimT = 1; setActiveBtn(null); }
   else goView("oblique");
-};
+}
+followBtn.onclick = () => { stopDemo(); setFollow(!followHostile); };
 addEventListener("keydown", (e) => {
   const k = e.key.toLowerCase();
+  if (k === "d") { demoActive ? stopDemo() : startDemo(); return; }
+  stopDemo();                                        // any manual camera key takes over from the demo
   if (k === "1") goView("oblique");
   else if (k === "2") goView("top");
   else if (k === "3") goView("threat");
   else if (k === "4") goView("sensor");
-  else if (k === "f") followBtn.click();
+  else if (k === "f") setFollow(!followHostile);
 });
+
+// --- T10: scripted demo timeline (the R4.3 narrative beat path) ---
+// An auto-playing sequence that walks the camera presets, the threat-call panel and a caption
+// banner through the mission story: coverage → classify the four tracks → the hostile ingress →
+// the human-gated DEFEAT. Deterministic and repeatable for the live demo; any manual gesture
+// (cam button, key, or grabbing the canvas to orbit) hands control back to the operator at once.
+interface Beat { at: number; caption: string; view?: ViewName; follow?: boolean; select?: string; }
+const DEMO_SCRIPT: Beat[] = [
+  { at: 0,  view: "oblique", caption: "AEGIS-EDGE · Joint Base Cascade — North Gate. Dusk. Edge sensors online." },
+  { at: 5,  view: "top",     caption: "RADAR, RF and EO/IR coverage sweeping the 1 km² no-fly volume." },
+  { at: 10, view: "oblique", caption: "Four tracks inbound. The edge classifier scores each one — deterministic, LLM-free." },
+  { at: 15, select: "0192",  caption: "Track 0192 — fast, high, squawking a friendly transponder → NONE. Not promoted." },
+  { at: 21, select: "0205",  caption: "Track 0205 — slow, tiny RCS, no C2 emitter → bird. Correctly held off the threat list." },
+  { at: 27, select: "0427", view: "threat", caption: "Track 0427 — quad thermal + commercial-UAS C2, inside the no-fly → HIGH." },
+  { at: 34, follow: true,    caption: "Threat-axis chase. The hostile is penetrating the protected-asset core." },
+  { at: 40, select: "0427",  caption: "Recommend DEFEAT — held behind a 2-person human gate. The LLM stays off the kill-chain." },
+  { at: 47, view: "oblique", caption: "Explainable, human-governed counter-UAS — decided at the edge." },
+];
+const DEMO_END = 53;                                 // hold the closing caption, then reset
+let demoActive = false, demoClock = 0, demoIdx = 0;
+const demoBtn = document.getElementById("demoBtn") as HTMLButtonElement;
+const captionEl = document.getElementById("demoCaption")!;
+
+function fireBeat(b: Beat): void {
+  if (b.view) goView(b.view);
+  if (b.follow !== undefined) setFollow(b.follow);
+  if (b.select) { const l = live.find((x) => x.track.id === b.select); if (l) selectTrack(l); }
+  captionEl.textContent = b.caption;
+  captionEl.classList.add("show");
+}
+function startDemo(): void {
+  demoActive = true; demoClock = 0; demoIdx = 0;
+  demoBtn.classList.add("active"); demoBtn.textContent = "■ Stop demo";
+}
+function stopDemo(): void {
+  if (!demoActive) return;
+  demoActive = false;
+  demoBtn.classList.remove("active"); demoBtn.textContent = "▶ Demo";
+  captionEl.classList.remove("show");
+}
+demoBtn.onclick = () => { demoActive ? stopDemo() : startDemo(); };
+// grabbing the canvas to orbit also hands control back from the scripted run
+renderer.domElement.addEventListener("pointerdown", () => stopDemo());
 
 // --- loop ---
 const clock = new THREE.Clock();
@@ -727,6 +780,15 @@ function animate() {
       const desired = p.clone().sub(back.multiplyScalar(70)); desired.y = p.y + 38;
       camera.position.lerp(desired, Math.min(1, dt * 2.2));
       controls.target.lerp(p, Math.min(1, dt * 3));
+    }
+  }
+  // T10: advance the scripted demo — fire any beats whose cue time has passed, then reset at the end
+  if (demoActive) {
+    demoClock += dt;
+    while (demoIdx < DEMO_SCRIPT.length && demoClock >= DEMO_SCRIPT[demoIdx].at) fireBeat(DEMO_SCRIPT[demoIdx++]);
+    if (demoClock >= DEMO_END) {
+      panel.classList.remove("show"); selected = null; overlay.style.display = "none";
+      goView("oblique"); stopDemo();
     }
   }
   if (camAnimT >= 1 && !followHostile) controls.update();          // operator orbit + damping

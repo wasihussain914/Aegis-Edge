@@ -68,6 +68,19 @@
       #cams .cam:hover { border-color: #6f87ad; color: #cfe3ff; }
       #cams .cam.active { background: #13314a; color: #8fd0ff; border-color: #4a9fe0; }
       #cams #followBtn.active { background: #3a0d12; color: #ff8a94; border-color: #ff6b78; }
+      /* --- T10 scripted demo timeline --- */
+      #cams #demoBtn { background: #13251c; color: #7df0b8; border-color: #2f6f4a; }
+      #cams #demoBtn:hover { border-color: #5dd6a0; color: #b6ffd9; }
+      #cams #demoBtn.active { background: #3a0d12; color: #ff8a94; border-color: #ff6b78; }
+      #demoCaption {
+        position: fixed; left: 50%; bottom: 56px; transform: translateX(-50%);
+        z-index: 11; max-width: 70vw; text-align: center;
+        font-size: 15px; line-height: 1.5; color: #eaf2ff; letter-spacing: .01em;
+        background: rgba(8,14,24,.8); border: 1px solid rgba(120,180,255,.35);
+        border-radius: 10px; padding: 12px 22px; backdrop-filter: blur(6px);
+        opacity: 0; transition: opacity .45s ease; pointer-events: none;
+      }
+      #demoCaption.show { opacity: 1; }
     </style>
   </head>
   <body>
@@ -83,10 +96,12 @@
         <button class="cam" data-view="threat">Threat-axis</button>
         <button class="cam" data-view="sensor">Sensor-eye</button>
         <button id="followBtn" class="cam">▶ Follow hostile</button>
+        <button id="demoBtn" class="cam">▶ Demo</button>
       </div>
     </div>
     <div id="panel"></div>
-    <div id="hint">drag to orbit · scroll to zoom · click a track for the AI threat-call · views 1-4 · F follow
+    <div id="demoCaption"></div>
+    <div id="hint">drag to orbit · scroll to zoom · click a track for the AI threat-call · views 1-4 · F follow · D demo
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

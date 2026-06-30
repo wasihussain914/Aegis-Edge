@@ -112,3 +112,17 @@ Newest at the bottom. One line per iteration: date/time, task, how verified.
   exact sRGB conversion the direct renderer.render() did, so base colors are unchanged — only glow
   is added. Resize now also drives composer.setSize. Verified: `npm run typecheck` + `npm run build`
   green.
+- 2026-06-30 02:3x CDT — T10 done (Chopper). Scripted demo timeline + README run-steps/narrative
+  (the R4.3 demo path). Added a ▶ Demo button (and `D` key) that auto-plays a 9-beat timeline:
+  oblique establish → top-down coverage → oblique classify → select 0192 (NONE) → select 0205
+  (bird) → select 0427 + threat-axis (HIGH) → follow-hostile ingress → reopen 0427 human-gate →
+  oblique close. Each beat drives goView/setFollow/selectTrack and a centered caption banner
+  (#demoCaption); beats fire by elapsed time in the render loop, reset to oblique at the end. Any
+  manual gesture — cam button, key 1-4/F, or pointer-down on the canvas to orbit, or clicking a
+  track — calls stopDemo() so the operator takes over instantly. Refactored track selection into a
+  shared selectTrack() and follow into setFollow() so the click handler, keys and demo drive
+  identically. README now has What-this-is, Run-it (+ optional Bedrock creds), Controls, and the
+  Demo-path narrative; recorded fallback flagged as a manual capture step (D26). Classifier/threat
+  -call untouched — the demo only orchestrates camera + existing panels. Self-extended tasks.md with
+  D26 (clean recording mode), D27 (demo progress ticker), D28 (per-beat caption cut). Verified:
+  `npm run typecheck` + `npm run build` both green.

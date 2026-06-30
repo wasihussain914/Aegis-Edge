@@ -28,8 +28,11 @@ if stuck. **The loop appends new tasks under "Discovered" as it learns.** Verify
       a "follow the hostile" toggle.
 - [x] T9. Post-processing: bloom on threat markers + nav lights, mild SSAO/contact shadows, a
       vignette — the "flashy" pass. Keep 60 fps.
-- [ ] T10. Scripted demo timeline + recorded fallback; README with run steps + the mission/
-      transition narrative.
+- [x] T10. Scripted demo timeline + recorded fallback; README with run steps + the mission/
+      transition narrative. (Built: ▶ Demo button + D key auto-play a 9-beat timeline that walks
+      camera/selection/caption through coverage→classify→hostile ingress→human-gate→close, stopping
+      on any manual gesture; README now has What-this-is, Run-it, Controls, and the Demo-path
+      narrative. Recorded fallback = manual pre-demo capture, tracked as D26 below.)
 
 ## Discovered (loop appends here)
 <!-- Each iteration: after a task, find the biggest gap to requirements.md and append 1-3 small,
@@ -131,6 +134,18 @@ if stuck. **The loop appends new tasks under "Discovered" as it learns.** Verify
       bloom threshold so HIGH tracks visibly throb in the glow (R1.4 unmistakable), reusing the new
       UnrealBloomPass — no new passes. Deterministic sin(t); cap so MED/LOW never cross the threshold.
       Cheap; classifier untouched; keep build + typecheck green and 60 fps.
+- [ ] D26. Recording mode (clean capture for the R4.3 recorded fallback): a key/toggle ("R") that adds a
+      body class hiding the HUD, hint and cam-bar chrome (keep only the demo caption banner) so the
+      scripted ▶ Demo timeline can be screen-captured cleanly into the recorded-fallback video. Pure DOM
+      class toggle; auto-enable during demo if desired; classifier untouched; keep build + typecheck green.
+- [ ] D27. Demo progress ticker: a thin progress bar (or "beat N/9 · T-<remaining>s") under the caption
+      banner showing position along DEMO_SCRIPT while ▶ Demo runs, so the operator knows where in the
+      scripted path they are and how long remains (R4.3 readability). Update from demoClock/DEMO_END each
+      frame while active; hide when idle. Cheap DOM; classifier untouched; keep build green.
+- [ ] D28. Per-beat caption cut: give each new scripted caption a quick fade-out→fade-in (and a left accent
+      bar tinted to the selected track's threat color on select-beats) so beat transitions read as
+      deliberate cuts in the recorded demo rather than text swaps (R4.3 polish). Cheap CSS/DOM driven by
+      fireBeat(); classifier untouched; keep build + typecheck green.
 
 ## Done when
 Waves 1-3 + Discovered checked or blocked; `npm run typecheck` + `npm run build` green; the
