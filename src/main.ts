@@ -385,7 +385,7 @@ interface Live {
   track: DroneTrack; group: THREE.Group; frame: THREE.Group; body: THREE.Mesh;
   rotors: THREE.Object3D[]; strobe: THREE.MeshStandardMaterial; trail: THREE.Line;
   cls: Classification; t: number; bank: number; prevDir: THREE.Vector3;
-  curve: THREE.CatmullRomCurve3; curveLen: number; climb: number;
+  curve: THREE.CatmullRomCurve3; curveLen: number; climb: number; phase: number;
   label: THREE.Sprite; ring?: THREE.Mesh;
   dropLine: THREE.Line; dropPos: Float32Array; reticle: THREE.Mesh;  // D1: altitude depth cue
   decision?: GateDecision;            // T7: latched human-gate outcome for this track
@@ -529,7 +529,10 @@ for (const t of tracks()) {
     new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false })
   );
   reticle.rotation.x = -Math.PI / 2; reticle.position.y = 1.2; scene.add(reticle);
-  live.push({ track: t, ...parts, trail, cls, t: Math.random(), bank: 0, prevDir: new THREE.Vector3(0, 0, 1), curve, curveLen, climb: 0, label, ring, dropLine, dropPos, reticle });
+  // D6: deterministic per-track phase (seeded from the id digits) so the bird's wander and the
+  // idle-rotor cadence are identical every run rather than random.
+  const phase = ([...t.id].reduce((a, c) => a + c.charCodeAt(0), 0) % 360) * (Math.PI / 180);
+  live.push({ track: t, ...parts, trail, cls, t: Math.random(), bank: 0, prevDir: new THREE.Vector3(0, 0, 1), curve, curveLen, climb: 0, phase, label, ring, dropLine, dropPos, reticle });
 }
 
 // --- live detection lines: one per (sensor, track); shown only while that sensor sees the track ---
@@ -815,19 +818,35 @@ function animate() {
     const need = Math.max(0, clearanceFloor(p.x, p.z) - p.y);
     l.climb += (need - l.climb) * Math.min(1, dt * 1.5);               // smooth climb/descend
     p.y += l.climb; ahead.y += l.climb;
+    // D6: per-truth flight character — make the truth label read in motion without touching the
+    // classifier. The bird (0205) wanders: a deterministic lateral weave (perpendicular to heading)
+    // plus a gentle altitude bob, so it never looks like purposeful UAS ingress.
+    const truth = l.track.truth;
+    if (truth === "bird") {
+      const head = ahead.clone().sub(p).setY(0);
+      if (head.lengthSq() < 1e-4) head.set(0, 0, 1);
+      head.normalize();
+      const perp = new THREE.Vector3(-head.z, 0, head.x);              // left/right of travel
+      const weave = Math.sin(l.t * 21 + l.phase) * 11 + Math.sin(l.t * 8.3 + l.phase * 1.7) * 6;
+      p.addScaledVector(perp, weave); ahead.addScaledVector(perp, weave);
+      p.y += Math.sin(l.t * 16 + l.phase) * 6;                          // altitude bob
+    }
     l.group.position.copy(p);
     l.group.lookAt(ahead);
-    // bank into the turn: roll the airframe by the signed heading change
+    // bank into the turn: roll the airframe by the signed heading change. Per-truth clamp: the
+    // friendly (fast, R/C aircraft) banks wider/shallower; the bird barely rolls; hostiles stay tight.
     const dir = ahead.clone().sub(p).setY(0).normalize();
     const turn = l.prevDir.x * dir.z - l.prevDir.z * dir.x;             // signed (cross-y)
-    const targetBank = THREE.MathUtils.clamp(turn * 40, -0.6, 0.6);
+    const bankClamp = truth === "friendly" ? 0.3 : truth === "bird" ? 0.18 : 0.6;
+    const targetBank = THREE.MathUtils.clamp(turn * 40, -bankClamp, bankClamp);
     l.bank += (targetBank - l.bank) * Math.min(1, dt * 4);
     l.frame.rotation.z = l.bank;
     l.prevDir.copy(dir);
     // Speed easing: ease off the throttle through sharp turns, full speed on straights.
     const speedScale = 1 - Math.min(0.55, Math.abs(turn) * 9);
     l.t += (l.track.speedMps * speedScale * dt) / l.curveLen;
-    for (const r of l.rotors) r.rotation.y += dt * 42;                  // spin rotors
+    // D6: rotor cadence by truth — the bird flaps slow/idle (no quad rotors), others spin up.
+    for (const r of l.rotors) r.rotation.y += dt * (truth === "bird" ? 9 : 42);
     l.strobe.emissiveIntensity = Math.sin(clock.elapsedTime * 8 + l.t * 12) > 0.7 ? 3.2 : 0.12;
     // D1: altitude drop-line + ground reticle track the drone's x/z each frame
     l.dropPos[0] = p.x; l.dropPos[1] = p.y; l.dropPos[2] = p.z;

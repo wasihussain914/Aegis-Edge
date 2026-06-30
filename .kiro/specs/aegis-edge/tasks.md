@@ -52,7 +52,7 @@ if stuck. **The loop appends new tasks under "Discovered" as it learns.** Verify
 - [x] D5. Living windows: cheap deterministic flicker so a small fraction of building windows
       toggle on/off over time (modulate emissiveIntensity on a slow phase per building), giving the
       skyline life without per-window cost. Keep build green and 60 fps (R1.6).
-- [ ] D6. Per-truth flight character: make the truth label visually legible in motion. The bird
+- [x] D6. Per-truth flight character: make the truth label visually legible in motion. The bird
       (0205) wanders — add a small deterministic lateral + altitude bob offset (sin of t·phase) and
       idle/slow rotors; the friendly (0192, fast) banks wider (lower bank clamp); hostiles stay
       precise and tight. Drives R1.2 "realistic paths" without touching the classifier. Keep build
@@ -212,6 +212,17 @@ if stuck. **The loop appends new tasks under "Discovered" as it learns.** Verify
       "condition red" ambient cue that reinforces urgency for the live demo without occluding the scene
       (R1.4 unmistakable, R4.3 ingress beat). Toggle a body/overlay class each frame from the live count;
       cheap; classifier untouched; keep build + typecheck green.
+- [ ] D42. Friendly transit corridor (scenario realism, builds on D6): the friendly (0192,
+      transponder, NONE) currently flies `ingressPath` straight over the protected asset — odd for a
+      cooperative aircraft. Give it its own off-axis transit path in `scenario.ts` that skirts the
+      no-fly volume (closest approach > SITE.noFlyR) so its benign intent reads in the scene and pairs
+      with D6's wider banking. Scenario waypoints only — DO NOT touch the classifier or 0192's
+      features (`insideNoFly:false` already), and keep the answer-key test (D2) green. Verify typecheck
+      + build + `npm test`.
+- [ ] D43. Bird descent/perch beat (builds on D6): give the bird (0205) a slow sinusoidal cruise-
+      altitude drift (gentle climb/descend over its loop, on top of D6's bob) so it reads as an animal
+      riding thermals rather than holding a fixed AGL like the UAS tracks — purely a deterministic add
+      to its y in the per-truth block. Cheap; classifier untouched; keep 60 fps and build green.
 
 ## Done when
 Waves 1-3 + Discovered checked or blocked; `npm run typecheck` + `npm run build` green; the

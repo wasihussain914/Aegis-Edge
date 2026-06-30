@@ -165,3 +165,10 @@ Newest at the bottom. One line per iteration: date/time, task, how verified.
   sines so brightness dips irregularly, reading as windows flicking on/off), kept subtle (~0.65–0.88)
   so it never crosses the bloom threshold. One material write per living building per frame; the rest
   of the skyline stays static. Verified: `npm run typecheck` + `npm run build` green.
+- 2026-06-30 04:31 CDT — D6 done (Chopper). Per-truth flight character so the truth label reads in
+  motion (classifier untouched). The bird (0205) now wanders — a deterministic lateral weave
+  (perpendicular to heading, two incommensurate sines) plus a gentle altitude bob, and its rotors
+  idle (~9 vs 42 rad/s) so it never looks like purposeful UAS ingress. Per-truth bank clamp: the
+  friendly (0192, fast R/C) banks wider/shallower (±0.3), the bird barely rolls (±0.18), hostiles
+  stay tight (±0.6). Seeded a deterministic per-track `phase` from the id digits so motion is
+  identical every run. Verified: `npm run typecheck` + `npm run build` both green.
