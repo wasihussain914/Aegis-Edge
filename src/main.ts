@@ -569,13 +569,26 @@ interface PendingGate { track: Track; shooter: UnitId; weapon: string; needed: n
 const pendingGates = new Map<string, PendingGate>();
 const deniedGates = new Set<string>();
 const coopLogEl = document.getElementById("cooplog")!;
-const coopLog: string[] = [];               // newest first; capped for the HUD
-function logEvent(line: string, tick: number): void {
-  const ts = `T+${Math.floor(tick)}s`;
-  coopLog.unshift(`${ts} · ${line}`);
-  if (coopLog.length > 7) coopLog.length = 7;
-  coopLogEl.innerHTML = coopLog.map((l) => `<div class="ev">${l}</div>`).join("");
+// Mission log: each entry is a timestamp + a short bold TAG (color-coded by severity) + a plain-
+// English line, so a viewer can scan WHAT happened (FIRE / DESTROYED / LINK) and read the why.
+type LogKind = "info" | "good" | "warn" | "bad" | "fire" | "kill";
+interface LogEntry { ts: string; tag: string; line: string; kind: LogKind; }
+const coopLog: LogEntry[] = [];             // newest first; capped for the HUD
+function logEvent(tag: string, line: string, tick: number, kind: LogKind = "info"): void {
+  coopLog.unshift({ ts: `T+${Math.floor(tick)}s`, tag, line, kind });
+  if (coopLog.length > 8) coopLog.length = 8;
+  coopLogEl.innerHTML = coopLog
+    .map((e) => `<div class="ev ${e.kind}"><span class="ts">${e.ts}</span> <span class="tg">${e.tag}</span> · ${e.line}</div>`)
+    .join("");
 }
+/** Map an engagement status to a log tag + severity for the negotiation lines. */
+const STATUS_LOG: Record<string, { tag: string; kind: LogKind }> = {
+  FIRE:  { tag: "FIRE", kind: "fire" },
+  HOLD:  { tag: "HOLD", kind: "warn" },
+  GATE:  { tag: "APPROVAL NEEDED", kind: "warn" },
+  READY: { tag: "READY", kind: "info" },
+  NONE:  { tag: "NO SHOOTER", kind: "info" },
+};
 // transition trackers so the log records CHANGES, not one line per frame
 const loggedStatus = new Map<string, string>();   // last logged status per hostile track
 const seenByUnit: [Set<string>, Set<string>] = [new Set(), new Set()]; // last picture per unit (detection events)
@@ -607,7 +620,7 @@ function fireGate(g: PendingGate): void {
   if (dp) spawnTracer(new THREE.Vector3(sp.x, 14, sp.z), dp.clone());
   engaged.add(g.track.id);                                 // shoot-and-shout: other unit stands down
   const other = g.shooter === "beachhead" ? "tank_column" : "beachhead";
-  logEvent(`${labelUnit(g.shooter)} ENGAGES ${g.track.id} with ${g.weapon} — human-approved; ${labelUnit(other)} stands down.`, simTime);
+  logEvent("FIRE", `${labelUnit(g.shooter)} engages ${g.track.id} with the ${g.weapon} — operator-approved. ${labelUnit(other)} stands down (no double-shot).`, simTime, "fire");
 }
 
 /** Re-render the pending approval gates (E4): nothing fires until every gate is granted or denied. */
@@ -622,7 +635,7 @@ function renderGates(): void {
       g.granted++; if (g.granted >= g.needed) { fireGate(g); pendingGates.delete(g.track.id); } renderGates(); };
   for (const b of coopGateEl.querySelectorAll<HTMLButtonElement>("button.deny"))
     b.onclick = () => { const id = b.dataset.deny!; pendingGates.delete(id); deniedGates.add(id);
-      logEvent(`${id}: engagement DENIED by operator — held, not fired.`, simTime); renderGates(); };
+      logEvent("DENIED", `operator declined the shot on ${id} — holding fire.`, simTime, "warn"); renderGates(); };
 }
 
 /** Switching mode re-decides the approver live (DOD-10): clear stale gates + status so the next tick
@@ -632,15 +645,20 @@ function setMode(m: OperatorMode): void {
   operatorMode = m;
   pendingGates.clear(); deniedGates.clear(); loggedStatus.clear(); renderGates();
   for (const b of modeBtns) b.classList.toggle("active", b.dataset.mode === m);
-  logEvent(`OPERATOR MODE → ${m.toUpperCase()} — approval authority updated.`, simTime);
+  const modeGloss: Record<OperatorMode, string> = {
+    manual: "every shot needs two operators to approve",
+    combined: "one operator approves each shot",
+    autonomous: "machine-authorized — no human approval in the loop",
+  };
+  logEvent("MODE", `operator control → ${m.toUpperCase()} — ${modeGloss[m]}.`, simTime, "info");
 }
 function setComms(c: CommsCase): void {
   if (c === commsCase) return;
   commsCase = c;
   for (const b of commsBtns) b.classList.toggle("active", b.dataset.comms === c);
-  logEvent(c === "intermittent"
-    ? "COMMS → CASE 2 (intermittent) — link will drop; expect stale tracks + degraded handoff."
-    : "COMMS → CASE 1 (persistent) — link steady; full fusion.", simTime);
+  logEvent("COMMS", c === "intermittent"
+    ? "Case 2 (contested / DDIL) — Link-16 will drop in and out; shared tracks may go stale."
+    : "Case 1 (clear) — Link-16 steady; both radars stay fully fused.", simTime, c === "intermittent" ? "warn" : "good");
 }
 function setPerspective(u: UnitId): void {
   perspective = u;
@@ -653,9 +671,9 @@ function setRadarDown(down: boolean): void {
   radarBeachBtn.classList.toggle("active", !down);          // "active" = radar UP (green/on)
   radarBeachBtn.textContent = down ? "Beachhead DOWN" : "Beachhead UP";
   pendingGates.clear(); loggedStatus.clear(); renderGates();  // re-decide engagements under the new sensor picture
-  logEvent(down
-    ? "DDIL: Marine Beachhead RADAR OFFLINE (jammed/kinetic) — organically BLIND; air picture now via Link-16 only."
-    : "Marine Beachhead RADAR restored — organic coverage back online.", simTime);
+  logEvent(down ? "RADAR DOWN" : "RADAR UP", down
+    ? "Marine Beachhead radar jammed offline — blind on its own; now sees only what the Tank Column shares over Link-16."
+    : "Marine Beachhead radar back online — seeing the air picture on its own again.", simTime, down ? "bad" : "good");
   playRadarAlarm(down);
 }
 for (const b of modeBtns) b.onclick = () => setMode(b.dataset.mode as OperatorMode);
@@ -898,7 +916,7 @@ function revealLive(l: Live, sensorId: string): void {
   lab.position.copy(l.label.position);
   scene.add(lab); l.label = lab;
   if (l.ring) l.ring.visible = true;
-  logEvent(`${sensorId} acquires ${l.track.id} on approach — classified ${l.cls.class.toUpperCase()} / ${l.cls.threat}.`, simTime);
+  logEvent("ACQUIRED", `${sensorId} picks up ${l.track.id} inbound — classified ${l.cls.class.toUpperCase()}, threat level ${l.cls.threat}.`, simTime, l.cls.threat === "HIGH" ? "bad" : "info");
 }
 
 // --- live detection lines: one per (sensor, track); shown only while that sensor sees the track ---
@@ -1164,7 +1182,7 @@ function setPaused(p: boolean): void {
   pauseBtn.classList.toggle("active", p);
   pauseBtn.textContent = p ? "▶ Resume" : "⏸ Pause";
   document.body.classList.toggle("paused", p);
-  logEvent(p ? "EVALUATION PAUSED — air picture frozen (camera still live)." : "EVALUATION RESUMED.", simTime);
+  logEvent(p ? "PAUSED" : "RESUMED", p ? "evaluation frozen — camera still live (Space to resume)." : "evaluation running again.", simTime, "info");
 }
 pauseBtn.onclick = () => setPaused(!paused);
 addEventListener("keydown", (e) => {
@@ -1373,13 +1391,15 @@ function animate() {
   // --- Phase D/E engagement step (DOD-6/7/8/9/10/12/14): core resolves; we log + render + gate it ---
   // 1) link + handoff transitions → one plain-English callout each (DOD-4 link, DOD-12 degradation)
   if (link !== linkWasUp) {
-    logEvent(link ? "LINK-16 ESTABLISHED — air pictures fused." : "LINK-16 dropped.", simTime);
+    logEvent(link ? "LINK-16 UP" : "LINK-16 DOWN", link
+      ? "Beachhead and Tank Column now share one fused air picture."
+      : "link lost — each unit is back to its own radar only.", simTime, link ? "good" : "warn");
     if (link) playLink(); else playLinkLost();
   }
   if (health.handoff !== prevHandoff) {
-    if (health.handoff === "DELAYED") logEvent("CASE 2: comms outage — cross-unit handoff DELAYED, shared tracks aging.", simTime);
-    else if (health.handoff === "FAILED") logEvent("CASE 2: handoff FAILED — fallback to SELF-PROTECT (organic sensors only).", simTime);
-    else if (prevHandoff !== "LIVE") logEvent("CASE 2: link restored — pictures re-fused.", simTime);
+    if (health.handoff === "DELAYED") logEvent("DEGRADED", "comms outage — shared tracks aging, no fresh handoff between units.", simTime, "warn");
+    else if (health.handoff === "FAILED") logEvent("HANDOFF LOST", "link down too long — each unit falls back to self-protect on its own sensors.", simTime, "bad");
+    else if (prevHandoff !== "LIVE") logEvent("RECOVERED", "comms restored — air pictures re-fused.", simTime, "good");
     prevHandoff = health.handoff;
   }
   // 2) new hostile detections per unit (entering a unit's picture) → one log line each
@@ -1387,7 +1407,7 @@ function animate() {
     const pic = ui === 0 ? bPic : cPic;
     for (const t of COOP_TRACKS) {
       if (t.faction === "hostile" && pic.has(t.id) && !seenByUnit[ui].has(t.id))
-        logEvent(`${labelUnit(coopUnitObjs[ui].id)} detects ${t.id}.`, simTime);
+        logEvent("TRACKING", `${labelUnit(coopUnitObjs[ui].id)} now holds hostile ${t.id} on its picture.`, simTime, "info");
     }
     seenByUnit[ui] = new Set(pic);
   }
@@ -1398,7 +1418,8 @@ function animate() {
   for (const o of plan.outcomes) {
     const prev = loggedStatus.get(o.track.id);
     if (o.status !== "NONE" && o.status !== prev) {
-      logEvent(o.logLine, simTime);
+      const m = STATUS_LOG[o.status] ?? STATUS_LOG.NONE;
+      logEvent(m.tag, o.logLine, simTime, m.kind);
       if (o.fired) {                                   // Autonomous machine-authorized fire (no human)
         const sIdx = o.decision.shooter === coopUnitObjs[0].id ? 0 : 1;
         const sp = coopUnits[sIdx].group.position;
@@ -1434,12 +1455,12 @@ function animate() {
       const bm = d.body.material as THREE.MeshStandardMaterial;
       bm.color.setHex(FACTION_COLOR.hostile); bm.emissive.setHex(FACTION_COLOR.hostile);
       reLabel(d, `${d.track.id} · HOSTILE`, FACTION_COLOR.hostile);
-      logEvent(`${labelUnit(det.id)} acquires ${d.track.id} on approach — classified HOSTILE (drone).`, simTime);
+      logEvent("HOSTILE", `${labelUnit(det.id)} acquires inbound ${d.track.id} — classified a hostile drone.`, simTime, "bad");
     }
     // destroy on engagement (human-approved OR autonomous machine fire — both land in `engaged`)
     if (engaged.has(d.track.id) && !d.dead) {
       d.dead = true;
-      logEvent(`${d.track.id} DESTROYED — effector hit confirmed; track removed.`, simTime);
+      logEvent("DESTROYED", `${d.track.id} neutralized — effector hit confirmed, track dropped.`, simTime, "kill");
       playAttack();
     }
     const ringMat = d.ring.material as THREE.MeshBasicMaterial;

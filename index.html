@@ -93,7 +93,15 @@
       #coop .sub { font-size: 11px; margin-top: 3px; font-variant-numeric: tabular-nums; }
       #cooplog { margin-top: 4px; display: flex; flex-direction: column; gap: 2px; }
       #cooplog .ev { font-size: 10.5px; line-height: 1.35; color: #b9cbe6; font-variant-numeric: tabular-nums;
-        border-left: 2px solid rgba(255,210,77,.5); padding-left: 6px; }
+        border-left: 2px solid rgba(150,170,200,.4); padding-left: 6px; }
+      #cooplog .ev .tg { font-weight: 700; letter-spacing: .3px; }
+      #cooplog .ev .ts { color: #6f87ad; }
+      #cooplog .ev.good { border-left-color: #4fd08a; } #cooplog .ev.good .tg { color: #7df0b8; }
+      #cooplog .ev.warn { border-left-color: #ffc14d; } #cooplog .ev.warn .tg { color: #ffd27a; }
+      #cooplog .ev.bad  { border-left-color: #ff6b78; } #cooplog .ev.bad  .tg { color: #ff9aa2; }
+      #cooplog .ev.fire { border-left-color: #ff7a3c; } #cooplog .ev.fire .tg { color: #ffae6b; }
+      #cooplog .ev.kill { border-left-color: #ff4d5e; } #cooplog .ev.kill .tg { color: #ff8a94; }
+      #cooplog .ev.info { border-left-color: #6fa8ff; } #cooplog .ev.info .tg { color: #9cc4ff; }
       #flegend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 7px; }
       #flegend .lg { display: flex; align-items: center; gap: 5px; font-size: 10.5px;
         color: #9db4d6; letter-spacing: .04em; }
@@ -170,7 +178,7 @@
           <span class="lg"><span class="sw" style="background:#ff4d5e;color:#ff4d5e"></span>HOSTILE</span>
           <span class="lg"><span class="sw" style="background:#5dd6a0;color:#5dd6a0"></span>NEUTRAL</span>
         </div>
-        <div class="sub" id="coologh" style="margin-top:6px;color:#7e97bd;">EVENT / NEGOTIATION LOG</div>
+        <div class="sub" id="coologh" style="margin-top:6px;color:#7e97bd;">MISSION LOG</div>
         <div id="cooplog"></div>
       </div>
       <div id="cams">

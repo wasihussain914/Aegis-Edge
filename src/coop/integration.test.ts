@@ -81,7 +81,7 @@ test("DOD-6/7/8: a red hostile drives a cooperative engagement; shoot-and-shout 
   assert.equal(h1.status, "FIRE");
   assert.equal(h1.decision.shooter, "tank_column");
   assert.equal(h1.decision.weapon, "slamraam");
-  assert.match(h1.logLine, /ENGAGES HOSTILE-1/);
+  assert.match(h1.logLine, /engages HOSTILE-1/);
   // DOD-8: the firing unit's partner stands down, and the track is now in `engaged`...
   assert.equal(h1.standDown, "beachhead");
   assert.ok(plan.engaged.has("HOSTILE-1"));

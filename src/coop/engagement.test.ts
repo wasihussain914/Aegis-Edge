@@ -29,7 +29,7 @@ test("DOD-6/DOD-7: a red hostile drives a cooperative engagement (link up, auton
   assert.equal(h1.decision.shooter, "tank_column");
   assert.equal(h1.decision.weapon, "slamraam");
   assert.equal(h1.standDown, "beachhead");      // shoot-and-shout: the Beachhead stands down
-  assert.match(h1.logLine, /ENGAGES HOSTILE-1/);
+  assert.match(h1.logLine, /engages HOSTILE-1/);
   assert.match(h1.logLine, /stands down/);
 });
 

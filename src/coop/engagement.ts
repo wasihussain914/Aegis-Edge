@@ -36,16 +36,16 @@ function logLineFor(o: { track: Track; decision: EngagementDecision; status: Eng
   const weapon = d.weapon ? labelWeapon(d.weapon) : "";
   switch (status) {
     case "FIRE":
-      return `${shooter} ENGAGES ${t.id} with ${weapon} — cheapest in-range by ROE; ` +
-        `${standDown ? labelUnit(standDown) : "the other unit"} stands down (shoot-and-shout).`;
+      return `${shooter} engages ${t.id} with the ${weapon} — machine-authorized, the cheapest in-range effector under ROE. ` +
+        `${standDown ? labelUnit(standDown) : "The other unit"} stands down (no double-shot).`;
     case "HOLD":
-      return `${t.id}: HOLD — ${shooter} ${weapon} needs a human approver and the current mode has none.`;
+      return `${shooter} would use the ${weapon} on ${t.id}, but it needs a human approver and this mode has none — holding.`;
     case "GATE":
-      return `${t.id}: AWAITING APPROVAL — ${shooter} ${weapon}; pauses on the human gate.`;
+      return `${shooter} is ready to engage ${t.id} with the ${weapon} — waiting on operator approval before it fires.`;
     case "READY":
-      return `${t.id}: READY — ${shooter} ${weapon}, machine-eligible; confirm per operator mode.`;
+      return `${shooter} can engage ${t.id} with the ${weapon} — confirm per the current operator mode.`;
     default:
-      return `${t.id}: no eligible shooter — no unit holds an in-range weapon (or link down).`;
+      return `${t.id}: no unit has an in-range weapon (or the link is down) — no one can take the shot.`;
   }
 }
 
