@@ -241,6 +241,18 @@ if stuck. **The loop appends new tasks under "Discovered" as it learns.** Verify
       as degrading rather than confidently tracked (R1.3, R1.4 honesty of the picture). Reset on
       reacquire. Deterministic from `fusedMods.size` + dt; cheap; classifier untouched; keep build +
       typecheck green and 60 fps.
+- [ ] D47. Active-sensor cue on the D9 labels (builds on D9 + T4 detection): each frame, count how many
+      tracks a given sensor currently holds (reuse the per-(sensor,track) detection already computed for
+      the live detection lines). When a sensor is actively detecting (≥1 track), brighten its post's
+      emissive and lift its D9 label opacity toward full; when idle, settle both to a dim baseline — so a
+      sweep "acquiring" something reads on the sensor itself, not just the beam line (R1.3 sensor↔track).
+      Keep a handle to each sensor's post + label on the LiveSensor record. Deterministic + cheap;
+      classifier untouched; keep build + typecheck green and 60 fps.
+- [ ] D48. Sensor coverage legend (builds on D9): a compact 3-row color key in #hud — a swatch + name per
+      modality (▮ RADAR · RAD-1 / ▮ RF · RF-1 / ▮ EO/IR · EO-1) tinted from MOD_COLOR — so a viewer can
+      decode the now-named, color-coded coverage shapes and labels without hovering (R1.3 readability).
+      Static DOM written once at startup into the existing #hud block; classifier untouched; keep build +
+      typecheck green.
 
 ## Done when
 Waves 1-3 + Discovered checked or blocked; `npm run typecheck` + `npm run build` green; the
