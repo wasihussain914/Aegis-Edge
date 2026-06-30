@@ -38,7 +38,7 @@ if stuck. **The loop appends new tasks under "Discovered" as it learns.** Verify
 <!-- Each iteration: after a task, find the biggest gap to requirements.md and append 1-3 small,
      verifiable tasks (e.g. unit test for classify answer-key, ledger replay timeline, more
      tracks/swarm, audio cue, minimap inset). Keep build + typecheck green. -->
-- [ ] D1. Altitude drop-lines: a faint vertical line from each drone down to a small ground
+- [x] D1. Altitude drop-lines: a faint vertical line from each drone down to a small ground
       reticle, threat-colored, so altitude/depth reads instantly in the oblique command view
       (R1.6 depth cue). Update reticle x/z each frame from the drone position.
 - [ ] D2. Answer-key unit test (`src/model/threatCall.test.ts`): assert 0427/0318 classify HIGH
@@ -146,6 +146,19 @@ if stuck. **The loop appends new tasks under "Discovered" as it learns.** Verify
       bar tinted to the selected track's threat color on select-beats) so beat transitions read as
       deliberate cuts in the recorded demo rather than text swaps (R4.3 polish). Cheap CSS/DOM driven by
       fireBeat(); classifier untouched; keep build + typecheck green.
+- [ ] D29. Drop-line altitude callout: float a tiny "ALT <m>" canvas-sprite at the reticle end of each new
+      D1 drop-line, showing the live altitude (round p.y) so the depth cue becomes an actual number on the
+      ground — turning the at-a-glance read into a quantified one for the command view (R1.6). Reuse the
+      makeLabel sprite pattern but redraw cheaply (only when the rounded value changes); tint by threat.
+      Classifier untouched; keep build + typecheck green and 60 fps.
+- [ ] D30. Reticle range-pulse: scale-pulse each D1 ground reticle proportional to the drone's horizontal
+      range to the protected asset (tighter/faster pulse as it closes inside SITE.noFlyR), so an inbound
+      track's reticle visibly "tightens" as it penetrates — reinforcing ingress urgency on the ground plane
+      alongside D7's tail strobe (R1.4, R4.3). Deterministic from position; cheap; classifier untouched.
+- [ ] D31. Ground-shadow blob under each drone: a soft dark radial sprite/disc on the ground at the reticle
+      point (separate from the threat reticle), faint and scaled slightly by altitude, to anchor each drone
+      to the terrain and sell the 3D depth without the cost of real shadow maps for fast movers (R1.2, R1.6).
+      Cheap additive/alpha disc updated each frame from drone x/z; keep 60 fps and build + typecheck green.
 
 ## Done when
 Waves 1-3 + Discovered checked or blocked; `npm run typecheck` + `npm run build` green; the

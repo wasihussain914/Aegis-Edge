@@ -126,3 +126,13 @@ Newest at the bottom. One line per iteration: date/time, task, how verified.
   -call untouched — the demo only orchestrates camera + existing panels. Self-extended tasks.md with
   D26 (clean recording mode), D27 (demo progress ticker), D28 (per-beat caption cut). Verified:
   `npm run typecheck` + `npm run build` both green.
+- 2026-06-30 02:5x CDT — D1 done (Chopper). Altitude drop-lines + ground reticles (R1.6 depth
+  cue). Each drone now drops a faint threat-colored vertical line from its hull straight down to a
+  small flat ring reticle on the ground (RingGeometry 2.2–3.4, opacity ~0.5), so altitude and
+  ground range read instantly in the oblique command view instead of being ambiguous against the
+  city. Built once per track (BufferGeometry with a 6-float position attr for the line + a reticle
+  mesh, both tinted by THREAT_COLOR like the trail/label); refreshed each frame in the render loop
+  from the live drone position — top = (p.x, p.y, p.z), bottom + reticle = (p.x, 1.2, p.z). Cheap
+  (2 verts + 1 ring per drone, no per-frame allocation), frustumCulled off so the line never pops.
+  Classifier/threat-call untouched. Self-extended tasks.md with D29–D31 (see Discovered). Verified:
+  `npm run typecheck` + `npm run build` both green.

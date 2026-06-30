@@ -294,6 +294,7 @@ interface Live {
   cls: Classification; t: number; bank: number; prevDir: THREE.Vector3;
   curve: THREE.CatmullRomCurve3; curveLen: number; climb: number;
   label: THREE.Sprite; ring?: THREE.Mesh;
+  dropLine: THREE.Line; dropPos: Float32Array; reticle: THREE.Mesh;  // D1: altitude depth cue
   decision?: GateDecision;            // T7: latched human-gate outcome for this track
 }
 
@@ -422,7 +423,20 @@ for (const t of tracks()) {
     );
     ring.rotation.x = -Math.PI / 2; ring.position.y = 2; scene.add(ring);
   }
-  live.push({ track: t, ...parts, trail, cls, t: Math.random(), bank: 0, prevDir: new THREE.Vector3(0, 0, 1), curve, curveLen, climb: 0, label, ring });
+  // D1: altitude depth cue — a faint threat-colored vertical line from the drone straight down to a
+  // small ground reticle, so altitude/range reads instantly in the oblique command view. Endpoints
+  // are refreshed each frame from the drone position (top) and its ground projection (bottom).
+  const dropPos = new Float32Array(6);
+  const dropGeo = new THREE.BufferGeometry();
+  dropGeo.setAttribute("position", new THREE.BufferAttribute(dropPos, 3));
+  const dropLine = new THREE.Line(dropGeo, new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.28 }));
+  dropLine.frustumCulled = false; scene.add(dropLine);
+  const reticle = new THREE.Mesh(
+    new THREE.RingGeometry(2.2, 3.4, 24),
+    new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false })
+  );
+  reticle.rotation.x = -Math.PI / 2; reticle.position.y = 1.2; scene.add(reticle);
+  live.push({ track: t, ...parts, trail, cls, t: Math.random(), bank: 0, prevDir: new THREE.Vector3(0, 0, 1), curve, curveLen, climb: 0, label, ring, dropLine, dropPos, reticle });
 }
 
 // --- live detection lines: one per (sensor, track); shown only while that sensor sees the track ---
@@ -715,6 +729,11 @@ function animate() {
     l.t += (l.track.speedMps * speedScale * dt) / l.curveLen;
     for (const r of l.rotors) r.rotation.y += dt * 42;                  // spin rotors
     l.strobe.emissiveIntensity = Math.sin(clock.elapsedTime * 8 + l.t * 12) > 0.7 ? 3.2 : 0.12;
+    // D1: altitude drop-line + ground reticle track the drone's x/z each frame
+    l.dropPos[0] = p.x; l.dropPos[1] = p.y; l.dropPos[2] = p.z;
+    l.dropPos[3] = p.x; l.dropPos[4] = 1.2;  l.dropPos[5] = p.z;
+    (l.dropLine.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
+    l.reticle.position.set(p.x, 1.2, p.z);
     // floating label rides above the drone; HIGH tracks get a pulsing ground ring
     l.label.position.set(p.x, p.y + 15, p.z);
     if (l.ring) {
