@@ -58,4 +58,9 @@ function narrationBridge(): Plugin {
 
 export default defineConfig({
   plugins: [narrationBridge()],
+  server: {
+    host: true,
+    // Allow access via tunnel hostnames (cloudflared public links).
+    allowedHosts: true,
+  },
 });
