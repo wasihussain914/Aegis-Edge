@@ -104,3 +104,11 @@ Newest at the bottom. One line per iteration: date/time, task, how verified.
   HUD button row + keyboard 1-4 / F. During transitions and follow the camera is driven directly
   (manual lookAt, no damping fight); when settled it hands control back to OrbitControls so the
   operator can orbit. classifier untouched. Verified: `npm run typecheck` + `npm run build` green.
+- 2026-06-30 02:0x CDT — T9 done (Chopper). The "flashy" post-processing pass: wired an
+  EffectComposer pipeline (RenderPass → UnrealBloomPass → vignette ShaderPass → OutputPass).
+  Bloom (strength 0.65, radius 0.4, threshold 0.82) glows the brightest emissive bits — nav lights,
+  tail strobes, HIGH threat rings — without washing out the dusk city windows. Added a mild radial
+  vignette (custom shader) to draw the eye to the protected-asset core. OutputPass preserves the
+  exact sRGB conversion the direct renderer.render() did, so base colors are unchanged — only glow
+  is added. Resize now also drives composer.setSize. Verified: `npm run typecheck` + `npm run build`
+  green.

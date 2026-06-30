@@ -26,7 +26,7 @@ if stuck. **The loop appends new tasks under "Discovered" as it learns.** Verify
 ## Wave 3 — demo polish (R1.5, R4.3)
 - [x] T8. Camera views: oblique-default, top-down, threat-axis, sensor-eye; smooth transitions;
       a "follow the hostile" toggle.
-- [ ] T9. Post-processing: bloom on threat markers + nav lights, mild SSAO/contact shadows, a
+- [x] T9. Post-processing: bloom on threat markers + nav lights, mild SSAO/contact shadows, a
       vignette — the "flashy" pass. Keep 60 fps.
 - [ ] T10. Scripted demo timeline + recorded fallback; README with run steps + the mission/
       transition narrative.

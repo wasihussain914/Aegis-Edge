@@ -8,6 +8,11 @@
  */
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
+import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { buildings, sensors, tracks, SITE, type DroneTrack, type SensorSite } from "./data/scenario.js";
 import { classify, explainTemplate, type Classification } from "./model/threatCall.js";
 import { fetchNarration } from "./narrate.js";
@@ -32,6 +37,40 @@ const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.target.set(0, 60, 0);
 controls.maxPolarAngle = Math.PI / 2.05;
+
+// --- T9: post-processing — the "flashy" pass ---
+// Full-scene bloom makes the nav lights, tail strobes and threat rings glow (they're the brightest
+// emissive elements, so a high threshold blooms them without washing out the dusk city), and a mild
+// radial vignette draws the eye to the protected-asset core. OutputPass does the sRGB conversion the
+// direct renderer.render() used to do, so colors stay identical to before — only the glow is added.
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(
+  new THREE.Vector2(innerWidth, innerHeight),
+  0.65, // strength — enough to glow markers, not blow out windows
+  0.4,  // radius
+  0.82  // threshold — only the bright emissive bits bloom
+);
+composer.addPass(bloom);
+// mild radial vignette
+const vignettePass = new ShaderPass({
+  uniforms: {
+    tDiffuse: { value: null },
+    offset: { value: 1.15 },
+    darkness: { value: 1.05 },
+  },
+  vertexShader:
+    "varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }",
+  fragmentShader:
+    "uniform sampler2D tDiffuse; uniform float offset; uniform float darkness; varying vec2 vUv;" +
+    "void main(){ vec4 c = texture2D(tDiffuse, vUv);" +
+    " vec2 uv = (vUv - 0.5) * offset;" +
+    " float v = clamp(1.0 - dot(uv, uv) * darkness * 0.5, 0.0, 1.0);" +
+    " v = smoothstep(0.0, 1.0, v);" +
+    " gl_FragColor = vec4(c.rgb * mix(0.78, 1.0, v), c.a); }",
+});
+composer.addPass(vignettePass);
+composer.addPass(new OutputPass());
 
 // --- atmospheric dusk sky dome (gradient: warm horizon -> deep blue zenith) ---
 const sky = new THREE.Mesh(
@@ -693,11 +732,12 @@ function animate() {
   if (camAnimT >= 1 && !followHostile) controls.update();          // operator orbit + damping
   else camera.lookAt(controls.target);
   clockEl.textContent = `T+${clock.elapsedTime.toFixed(1)}s · ${live.length} tracks · ${live.filter((l) => l.cls.threat === "HIGH").length} HIGH`;
-  renderer.render(scene, camera);
+  composer.render();
 }
 animate();
 
 addEventListener("resize", () => {
   camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
+  composer.setSize(innerWidth, innerHeight);
 });
