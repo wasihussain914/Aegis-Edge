@@ -72,6 +72,17 @@
   .slide.diagram { padding: 4vh 3vw 3vh; }
   .diagram-frame { flex: 1; width: 100%; border: 1px solid var(--line2); border-radius: 10px;
     background: #fff; margin: 12px 0 10px; box-shadow: 0 8px 30px rgba(0,0,0,.35); }
+  .cue { display: none; }   /* presenter notes hidden on the rendered slides (see PITCH-SCRIPT.md) */
+  .scn { display: flex; gap: 10px; margin-top: 18px; }
+  .scn .pill { font-family: var(--mono); font-size: 12px; letter-spacing: 1px; padding: 6px 12px;
+    border-radius: 999px; border: 1px solid var(--line2); color: var(--sub); }
+  .scn .pill.on { border-color: var(--bronze); color: var(--bronze); background: rgba(255,180,84,.08); }
+  .report { margin-top: 14px; background: #0b1220; border: 1px solid var(--line2); border-radius: 10px;
+    padding: 18px 22px; font-family: var(--mono); font-size: 13px; line-height: 1.6; color: #bcd0ea;
+    box-shadow: 0 10px 34px rgba(0,0,0,.35); max-height: 60vh; overflow: auto; }
+  .report .h { color: var(--bronze); font-weight: 700; }
+  .report .g { color: var(--green); } .report .r { color: var(--red); } .report .c { color: var(--cyan); }
+  .report .k { color: var(--faint); }
 </style>
 </head>
 <body>
@@ -121,6 +132,67 @@
     <div class="cue"><b>[1:15–7:30 · the majority of your time]</b> Switch to the sim. Controls: <b>R</b> = radar down · <b>J</b> = jammer · <b>Case 2</b> = auto DDIL cycle · <b>Space</b> = pause to explain · click a track for the AI threat&#8209;call, then <b>💥 Destroy</b>. <b>End on beat 5</b>: press R (threats go TRACK LOST) → release → they reacquire and the system auto-defeats them. That's your closer.</div>
   </section>
 
+  <!-- 3s1 · SCENARIO 1 — MANUAL -->
+  <section class="slide">
+    <div class="kicker">Scenario 1 · normal ingress — Manual mode</div>
+    <h2>Drones inbound. A human authorizes every shot.</h2>
+    <ul>
+      <li>Contacts ingress from the edge — grey <b>UNKNOWN</b> → sensors acquire → classified <b class="" style="color:var(--red)">HOSTILE</b>.</li>
+      <li>Mode = <b>Manual</b>: the gate names the cheapest in-range effector but <b>pauses on a two-person human gate</b> — nothing fires yet.</li>
+      <li>The operator reads the plain-English threat call, <b>approves</b>, and the threat is defeated — every step written to the audit ledger.</li>
+      <li class="sub">Maximum control, deliberate tempo. Nothing engages without a human.</li>
+    </ul>
+    <div class="scn"><span class="pill on">Manual</span><span class="pill">Combined</span><span class="pill">Autonomous</span></div>
+  </section>
+
+  <!-- 3s2 · SCENARIO 2 — AUTONOMOUS -->
+  <section class="slide">
+    <div class="kicker">Scenario 2 · saturation — Autonomous mode</div>
+    <h2>Too many, too fast — machine-speed defense inside a bounded envelope.</h2>
+    <ul>
+      <li>A swarm saturates the airspace. Past ~6 simultaneous threats, per-target human gating is physically impossible.</li>
+      <li>The operator pre-authorizes a <b>bounded AUTO-DEFENSE envelope</b> — two-person to arm, ABORT always live.</li>
+      <li>The deterministic gate <b>engages at machine speed</b> (~0.58 µs/decision); every action is still hash-chained into the ledger.</li>
+      <li class="sub">Machine tempo, human-bounded — and the LLM still never touches the trigger.</li>
+    </ul>
+    <div class="scn"><span class="pill">Manual</span><span class="pill">Combined</span><span class="pill on">Autonomous</span></div>
+  </section>
+
+  <!-- 3s3 · SCENARIO 3 — DDIL -->
+  <section class="slide">
+    <div class="kicker">Scenario 3 · contested — DDIL / jammed</div>
+    <h2>What happens when we get jammed?</h2>
+    <ul>
+      <li>Enemy EW blackout: the radars go blind, threats drop to <b style="color:var(--faint)">⚠ TRACK LOST</b> — we can't see or shoot.</li>
+      <li><b style="color:var(--green)">COMMS DENIED → EDGE-AUTONOMOUS</b>: the gate keeps governing locally — no cloud, no link.</li>
+      <li>The instant sensing returns, the system <b>reacquires and defeats</b> the threats it couldn't touch.</li>
+      <li class="sub">Cross-unit pictures degrade gracefully → self-protect → re-fuse. Jamming delays us; it doesn't beat us.</li>
+    </ul>
+    <div class="scn"><span class="pill">Case 1 · clear</span><span class="pill on">Case 2 · DDIL / jammed</span></div>
+  </section>
+
+  <!-- 3s4 · BEDROCK REPORT -->
+  <section class="slide">
+    <div class="kicker">Amazon Bedrock — AI-generated assessment report</div>
+    <h2>Bedrock turns the collected data into a plain-English report.</h2>
+    <div class="report">
+<span class="h">AEGIS-EDGE · THREAT ASSESSMENT REPORT</span> <span class="k">(sample output)</span><br>
+<span class="k">AO: Joint Base Cascade — North Gate · WCS: TIGHT · 2026-07-01 08:14Z · engine: Bedrock (Claude)</span><br><br>
+<span class="h">SUMMARY</span> — 4 tracks held · 2 classified HOSTILE · <span class="g">2 defeated</span> · <span class="g">0 fratricide</span> · <span class="g">0 friendly engaged</span>.<br><br>
+<span class="r">HOSTILE-1 (0427)</span> — quad thermal + commercial-UAS C2, inside the no-fly. Classified <span class="r">HIGH</span>.<br>
+&nbsp;&nbsp;ROE: Tank Column · SLAMRAAM (cheapest in-range). <span class="c">Operator-approved.</span> DEFEATED T+41s.<br>
+<span class="r">HOSTILE-2 (0318)</span> — low RCS, <b>fiber-guided (no RF emitter)</b>. Classified <span class="r">HIGH</span>.<br>
+&nbsp;&nbsp;RF-defeat N/A → escalated to SHORAD. <span class="c">Operator-approved.</span> DEFEATED T+58s.<br>
+<span class="g">FRIEND-1 (0192)</span> — valid ADS-B / Remote ID → <span class="g">COOPERATIVE</span>. Hard-blocked; never engaged.<br><br>
+<span class="h">COMMS</span> — Case 2 (DDIL): 1 jamming event (6s). Edge-autonomous; all tracks reacquired on recovery.<br>
+<span class="h">LEDGER</span> — 27 entries · Ed25519 hash-chain <span class="g">VERIFIED</span> · S3 Object-Lock (WORM).<br><br>
+<span class="h">ASSESSMENT</span> — Nominal defense. Both hostiles neutralized with the cheapest effective effectors;<br>
+zero risk to cooperative traffic. Recommend continued TIGHT posture; pre-authorize the AUTO envelope<br>
+if swarm density rises. Model ran <b>off the kill chain</b> — it summarizes; it never decided a shot.
+    </div>
+    <div class="sub" style="margin-top:10px;font-size:13px;">Generated by Amazon Bedrock from the tracks + audit ledger, <b>after</b> the gate decided. Illustrative sample.</div>
+  </section>
+
   <!-- 3b · DATA PROVENANCE -->
   <section class="slide">
     <div class="kicker">The data · where it comes from <span class="tag">30%</span></div>
@@ -149,7 +221,7 @@
       </div>
       <div class="card cloud">
         <h3>Cloud — GovCloud IL5</h3>
-        <p>Bedrock (threat assessment, async &amp; off the kill chain) · S3 Object&#8209;Lock <b>WORM</b> (signed ledger) · KMS · IAM.</p>
+        <p>Bedrock <b>generates the assessment report</b> from the collected data (async &amp; off the kill chain) · S3 Object&#8209;Lock <b>WORM</b> (signed ledger) · KMS · IAM.</p>
         <div class="m">expensive path is bounded &amp; throttled — never on the trigger.</div>
       </div>
     </div>
