@@ -821,6 +821,8 @@ interface Live {
   fusedMods: Set<string>;             // D8: distinct sensor modalities holding this track this frame
   detected: boolean;                  // false until a sensor first acquires it → then revealed/classified
   dead?: boolean;                     // operator-destroyed → hidden + skipped
+  lost?: boolean;                     // DDIL: site sensors denied → track dropped (undetected)
+  killAt?: number;                    // sim time to auto-defeat (system engages on reacquisition)
 }
 
 // --- T7 governance: recommend-only DEFEAT requires a 2-person human gate (R3.1) ---
@@ -994,6 +996,16 @@ function revealLive(l: Live, sensorId: string): void {
   logEvent("ACQUIRED", `${sensorId} picks up ${l.track.id} inbound — classified ${l.cls.class.toUpperCase()}, threat level ${l.cls.threat}.`, simTime, l.cls.threat === "HIGH" ? "bad" : "info");
 }
 
+/** Recolor + relabel a single-site drone (used for DDIL TRACK LOST ↔ reacquire). */
+function reColorLive(l: Live, colorHex: number, labelText: string): void {
+  const bm = l.body.material as THREE.MeshStandardMaterial;
+  bm.color.setHex(colorHex); bm.emissive.setHex(colorHex);
+  scene.remove(l.label);
+  const lab = makeLabel(labelText, colorHex);
+  lab.position.copy(l.label.position);
+  scene.add(lab); l.label = lab;
+}
+
 // --- live detection lines: one per (sensor, track); shown only while that sensor sees the track ---
 // D10: `op` is the eased opacity — lines fade in/out toward a target instead of a hard on/off pop.
 interface DetLine { line: THREE.Line; s: LiveSensor; l: Live; pos: Float32Array; op: number; }
@@ -1050,16 +1062,19 @@ function selectTrack(l: Live): void {
   showPanel(l);
 }
 
-/** Operator manual defeat: destroy the selected single-site drone — burst + sound + audit-ledger entry. */
-function killLive(l: Live): void {
+/** Destroy a single-site drone — burst + sound + audit-ledger entry. Manual by default; `auto` is the
+ *  system engaging on reacquisition after a DDIL blackout. */
+function killLive(l: Live, auto = false): void {
   if (l.dead) return;
-  l.dead = true;
+  l.dead = true; l.killAt = undefined;
   spawnBurst(l.group.position.clone());
   playAttack();
   l.group.visible = false; l.trail.visible = false; l.label.visible = false;
   l.dropLine.visible = false; l.reticle.visible = false; if (l.ring) l.ring.visible = false;
-  appendLedger(l, "DEFEAT-AUTHORIZED", ["operator (manual defeat)"]);
-  logEvent("DESTROYED", `${l.track.id} neutralized — operator manual defeat; effector hit confirmed.`, simTime, "kill");
+  appendLedger(l, "DEFEAT-AUTHORIZED", [auto ? "auto-defense (reacquisition)" : "operator (manual defeat)"]);
+  logEvent("DESTROYED", auto
+    ? `${l.track.id} neutralized — system engaged on reacquisition; effector hit confirmed.`
+    : `${l.track.id} neutralized — operator manual defeat; effector hit confirmed.`, simTime, "kill");
   const db = document.getElementById("destroyBtn") as HTMLButtonElement | null;
   if (db) { db.textContent = "✓ TARGET NEUTRALIZED"; db.disabled = true; db.classList.add("done"); }
 }
@@ -1405,6 +1420,9 @@ function animate() {
   const phase: Case2Phase = (commsCase === "intermittent" && inLinkRange) ? case2PhaseAt(simTime - case2Start) : "up";
   const case2Jam = phase === "jammed";
   const jammed = jammerActive || case2Jam;
+  // The SITE goes blind whenever it's jammed (EW) or a radar is knocked down — this drives the
+  // single-site drones (0427/0318) to TRACK LOST, then reacquire + auto-defeat when it clears.
+  const siteBlind = jammed || radarDownBeach;
   // EW blackout blinds the radars too: zero both units' sensor ranges so the core reports NOTHING
   // detected and no engagement is possible — the operational cost of jamming, decided by the core.
   const beachUnit: Unit = jammed ? { ...beachUnitBase, radarRangeM: 0, eoirRangeM: 0 } : beachUnitBase;
@@ -1662,6 +1680,22 @@ function animate() {
   linkWasUp = link;
   for (const l of live) {
     if (l.dead) continue;                         // operator-destroyed → hidden, no longer animated
+    // DDIL: a blinded site (radar down / EW jam) drops classified tracks to TRACK LOST; when the
+    // site comes back online they reacquire, and the system engages the hostiles it couldn't touch
+    // while blind (auto-defense catching up) — the exact "lost it, then killed it on recovery" story.
+    if (l.detected) {
+      if (siteBlind && !l.lost) {
+        l.lost = true; l.killAt = undefined;
+        reColorLive(l, UNKNOWN_COLOR, `${l.track.id} · ⚠ TRACK LOST`);
+        logEvent("TRACK LOST", `${l.track.id} lost — site sensors denied (radar down / jammed). No track.`, simTime, "bad");
+      } else if (!siteBlind && l.lost) {
+        l.lost = false;
+        reColorLive(l, THREAT_COLOR[l.cls.threat], `${l.track.id} · ${l.cls.class.toUpperCase()} · ${l.cls.threat}`);
+        logEvent("REACQUIRED", `${l.track.id} reacquired — sensors back online.`, simTime, "good");
+        if (l.track.truth === "hostile") l.killAt = simTime + 1.0;   // system engages on reacquisition
+      }
+    }
+    if (l.killAt !== undefined && simTime >= l.killAt) { killLive(l, true); continue; }
     // Arc-length lookups: u is fraction of distance, so ground speed is constant in m/s
     // regardless of how the spline bunches near waypoints (smooth, real-looking motion).
     const u = ((l.t % 1) + 1) % 1;
@@ -1767,7 +1801,7 @@ function animate() {
   // detection lines: a sensor sees a track when it's in range AND inside the current scan lobe
   for (const l of live) l.fusedMods.clear();   // D8: recompute multi-sensor fusion fresh each frame
   for (const d of detLines) {
-    if (d.l.dead) { d.op = 0; d.line.visible = false; continue; }   // destroyed → no detection lines
+    if (d.l.dead || siteBlind) { d.op = 0; d.line.visible = false; continue; } // destroyed or blinded → no detection
     const tp = d.l.group.position;
     const dx = tp.x - d.s.site.x, dz = tp.z - d.s.site.z;
     const range = Math.hypot(dx, dz);
@@ -1838,7 +1872,7 @@ function animate() {
   const fusedCount = live.filter((l) => !l.dead && l.fusedMods.size >= 2).length;  // D8: multi-sensor tracks
   // D11: tally tracks per threat level and write the live counts into the legend swatches
   const tally: Record<string, number> = { HIGH: 0, MED: 0, LOW: 0, NONE: 0 };
-  for (const l of live) if (l.detected && !l.dead) tally[l.cls.threat] = (tally[l.cls.threat] ?? 0) + 1;
+  for (const l of live) if (l.detected && !l.dead && !l.lost) tally[l.cls.threat] = (tally[l.cls.threat] ?? 0) + 1;
   for (const [lvl, el] of legendCounts) el.textContent = String(tally[lvl] ?? 0);
   clockEl.textContent = `T+${simTime.toFixed(1)}s · ${live.length} tracks · ${tally.HIGH} HIGH · ${fusedCount} FUSED`;
   composer.render();
