@@ -510,6 +510,7 @@ interface CoopDroneView {
   ring: THREE.Mesh;       // D2: "ENGAGED" ground ring, lit once a hostile is fired on
   label: THREE.Sprite; detected: boolean; dead: boolean;  // detect→classify→destroy arc
   inbound: boolean; home: { x: number; z: number };       // hostiles fly IN from far to `home`
+  lost: boolean;          // detected before, but currently UNTRACKED because the sensors are jammed
 }
 const coopDrones: CoopDroneView[] = [];
 for (const t of COOP_TRACKS) {
@@ -531,7 +532,7 @@ for (const t of COOP_TRACKS) {
   );
   ring.rotation.x = -Math.PI / 2; ring.frustumCulled = false; scene.add(ring);
   const phase = ([...t.id].reduce((a, c) => a + c.charCodeAt(0), 0) % 360) * (Math.PI / 180);
-  coopDrones.push({ track: t, group: parts.group, body: parts.body, rotors: parts.rotors, phase, ring, label, detected: !inbound, dead: false, inbound, home });
+  coopDrones.push({ track: t, group: parts.group, body: parts.body, rotors: parts.rotors, phase, ring, label, detected: !inbound, dead: false, inbound, home, lost: false });
 }
 
 /** Swap a coop drone's floating label (text + color) — used when a track is classified. */
@@ -1335,23 +1336,30 @@ function animate() {
   // zeroed) — so it holds tracks ONLY through Link-16's fused picture. If the link also drops (Case 2
   // jamming) it goes fully dark and self-protects. The deterministic core decides all of this from the
   // zeroed ranges; nothing here is faked.
-  const beachUnit: Unit = radarDownBeach ? { ...MARINE_BEACHHEAD, radarRangeM: 0, eoirRangeM: 0 } : MARINE_BEACHHEAD;
-  const colUnit = tankColumnAt(simTime, 1);
-  const coopUnitObjs: [Unit, Unit] = [beachUnit, colUnit];
+  // A jam blackout also blinds the RADARS (EW denies sensing, not just the datalink), so during a
+  // blackout both units' sensor ranges are zeroed → they can't detect the drones at all. This is
+  // computed just below once `jammed` is known; declared here so the whole air picture reads it.
+  const beachUnitBase: Unit = radarDownBeach ? { ...MARINE_BEACHHEAD, radarRangeM: 0, eoirRangeM: 0 } : MARINE_BEACHHEAD;
+  const colUnitBase = tankColumnAt(simTime, 1);
   // DDIL link state: in Case 2 the phase cycle drives the drops (degradation outage / jamming blackout);
   // a manually-forced jammer (J) denies the link in any case. The link is up only when in range, not in
   // a degraded outage, and not jammed. Everything downstream reads this one `link`.
   const phase: Case2Phase = commsCase === "intermittent" ? case2PhaseAt(simTime) : "up";
   const case2Jam = phase === "jammed";
   const jammed = jammerActive || case2Jam;
+  // EW blackout blinds the radars too: zero both units' sensor ranges so the core reports NOTHING
+  // detected and no engagement is possible — the operational cost of jamming, decided by the core.
+  const beachUnit: Unit = jammed ? { ...beachUnitBase, radarRangeM: 0, eoirRangeM: 0 } : beachUnitBase;
+  const colUnit: Unit = jammed ? { ...colUnitBase, radarRangeM: 0, eoirRangeM: 0 } : colUnitBase;
+  const coopUnitObjs: [Unit, Unit] = [beachUnit, colUnit];
   const link = !jammed && phase !== "degraded" && coopLinkUpAt(simTime, "persistent", 1);
   if (link) lastLinkUpSec = simTime;
   const health = commsHealth(link, simTime, lastLinkUpSec); // DOD-12 LIVE/DELAYED/FAILED
   // jam transitions (manual J or a Case-2 window): one log + sound when the blackout starts / lifts
   if (jammed !== prevJammed) {
     logEvent(jammed ? "JAMMED" : "EW CLEAR", jammed
-      ? "enemy EW blackout — Link-16 DENIED. Beachhead and Tank Column isolated to their own sensors; the edge gate keeps making shoot/no-shoot calls locally (no cloud needed)."
-      : "jamming lifted — Link-16 re-establishing.", simTime, jammed ? "bad" : "good");
+      ? "enemy EW blackout — radars and Link-16 DENIED. Both units go blind; drones drop off the picture. The edge gate still governs locally (no cloud needed) — it just has nothing to shoot until sensing returns."
+      : "jamming lifted — radars and Link-16 recovering; reacquiring tracks.", simTime, jammed ? "bad" : "good");
     if (jammed) playLinkLost(); else playLink();
     prevJammed = jammed;
   }
@@ -1453,9 +1461,12 @@ function animate() {
     }
   }
   if (link) { lastLinkPic[0] = new Set(bPic); lastLinkPic[1] = new Set(cPic); } // for Case-2 staleness
+  const untracked = jammed ? coopDrones.filter((d) => d.track.faction === "hostile" && d.detected && !d.dead).length : 0;
   airpicEl.textContent = `AIR PICTURE · Beachhead ${bPic.size} · Column ${cPic.size}` +
-    (link && cPic.size > 0 ? ` · ${[...bPic].filter((id) => cPic.has(id)).length} shared` : "");
-  if (link && !linkWasUp) airpicEl.style.color = "#9fe8ff"; // flash the fusion moment
+    (link && cPic.size > 0 ? ` · ${[...bPic].filter((id) => cPic.has(id)).length} shared` : "") +
+    (jammed ? ` · ⚠ ${untracked} THREAT${untracked === 1 ? "" : "S"} UNTRACKED (jammed)` : "");
+  if (jammed) airpicEl.style.color = "#ff8a7a";
+  else if (link && !linkWasUp) airpicEl.style.color = "#9fe8ff"; // flash the fusion moment
   else if (!link) airpicEl.style.color = "#6f87ad";
   // E3/DOD-13: perspective readout — the selected unit's own picture (organic vs link-fused split).
   {
@@ -1538,6 +1549,33 @@ function animate() {
       bm.color.setHex(FACTION_COLOR.hostile); bm.emissive.setHex(FACTION_COLOR.hostile);
       reLabel(d, `${d.track.id} · HOSTILE`, FACTION_COLOR.hostile);
       logEvent("HOSTILE", `${labelUnit(det.id)} acquires inbound ${d.track.id} — classified a hostile drone.`, simTime, "bad");
+    }
+    // TRACK LOST: a classified hostile the units can no longer hold (jam blinded the radars, or the
+    // only sensor that saw it went down) drops off the picture — greys to UNKNOWN, "⚠ TRACK LOST".
+    // This is the operational cost of jamming: you can't shoot what you can't see. Reacquire on clear.
+    if (d.detected && !d.dead && d.track.faction === "hostile") {
+      const held = bPic.has(d.track.id) || cPic.has(d.track.id);
+      if (!held && !d.lost) {
+        d.lost = true;
+        const bm = d.body.material as THREE.MeshStandardMaterial;
+        bm.color.setHex(UNKNOWN_COLOR); bm.emissive.setHex(UNKNOWN_COLOR);
+        reLabel(d, `${d.track.id} · ⚠ TRACK LOST`, UNKNOWN_COLOR);
+        logEvent("TRACK LOST", `${d.track.id} lost — sensors jammed, no track. We're blind to it until sensing returns.`, simTime, "bad");
+      } else if (held && d.lost) {
+        d.lost = false;
+        const bm = d.body.material as THREE.MeshStandardMaterial;
+        bm.color.setHex(FACTION_COLOR.hostile); bm.emissive.setHex(FACTION_COLOR.hostile);
+        reLabel(d, `${d.track.id} · HOSTILE`, FACTION_COLOR.hostile);
+        logEvent("REACQUIRED", `${d.track.id} reacquired — sensors clear, track is back.`, simTime, "good");
+      }
+    }
+    // a lost track blinks translucent so it reads as "untracked, last-known" rather than a live hold
+    if (d.lost && !d.dead) {
+      const bm = d.body.material as THREE.MeshStandardMaterial;
+      bm.opacity = 0.35 + 0.25 * ((Math.sin(simTime * 7) + 1) / 2); bm.transparent = true;
+    } else if (!d.dead) {
+      const bm = d.body.material as THREE.MeshStandardMaterial;
+      if (bm.transparent) { bm.opacity = 1; bm.transparent = false; }
     }
     // destroy on engagement (human-approved OR autonomous machine fire — both land in `engaged`)
     if (engaged.has(d.track.id) && !d.dead) {
