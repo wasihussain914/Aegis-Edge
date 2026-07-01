@@ -126,13 +126,15 @@
     <div class="kicker">The data · where it comes from <span class="tag">30%</span></div>
     <h2>Data the military <span style="color:var(--green)">already has</span>.</h2>
     <ul>
-      <li><b>Sensors you already field</b> — radar (kinematics), RF / SIGINT (emitter DF), EO/IR (thermal + visual). We fuse them with a <b>real IMM tracker</b>. <span class="sub">No new sensors to buy.</span></li>
-      <li><b>Signals you already receive</b> — ADS-B / Remote ID / IFF for friend-or-foe, and <b>Link-16</b> for the shared air picture. We ride the datalinks you already operate.</li>
-      <li><b>One standard interface — SAPIENT / BSI&nbsp;Flex&nbsp;335</b> — the open C-UAS standard your sensors and effectors <b>already speak</b>. Plug in; don't rebuild.</li>
-      <li><b>Proven on real measurement data</b> — the tracker runs over <b>real drone-trajectory telemetry</b>, not scripted paths. <span class="sub">(The demo scenario is synthetic and labeled; the tracker and the data are real.)</span></li>
+      <li><b>RF detection</b> → <b>DroneRF</b> — real small-UAS RF signatures (drone vs background).</li>
+      <li><b>Thermal / EO-IR</b> → <b>HIT-UAV</b> — real high-altitude infrared UAV imagery.</li>
+      <li><b>Cooperative discrimination (friend-or-foe)</b> → <b>ADS-B / adsb.lol</b> + <b>OpenSky</b> state vectors — real friendly aircraft, held cooperative → the <b>&lt;0.1% false-positive</b> guarantee.</li>
+      <li><b>Cross-unit linking</b> → <b>MITRE Cursor-on-Target</b> — the DoD standard for sharing tracks between units (our Link-16 fusion layer).</li>
+      <li><b>Real threat data</b> → <b>Ukraine UAV-strike dataset</b> — real launched / shot-down drones ground the threat side.</li>
     </ul>
-    <div class="thesis" style="margin-top:20px;font-size:22px;">Zero new data collection. We're a software layer on the air picture you already own.</div>
-    <div class="cue"><b>[~40s, right after the demo]</b> This is the credibility slide. Say: “Everything you just saw runs on data the military already collects — radar, RF, EO/IR, transponders, Link-16 — ingested through SAPIENT, the standard your sensors already speak. We add no new sensors and no new data pipeline; we govern the picture you already have.” Keep the honesty line: real tracker + real telemetry, synthetic *scenario*.</div>
+    <div class="sub" style="margin-top:10px;font-size:14px;">All fused by a <b>real IMM tracker</b> · ingested via <b>SAPIENT / BSI&nbsp;Flex&nbsp;335</b> · <b>no new sensors</b>.</div>
+    <div class="thesis" style="margin-top:16px;font-size:22px;">Zero new data collection. We're a software layer on the air picture you already own.</div>
+    <div class="cue"><b>[~40s, right after the demo]</b> Credibility slide. Say: “We fuse four real sensor modalities the military already collects — RF from DroneRF, thermal from HIT-UAV, and cooperative ADS-B tracks from adsb.lol and OpenSky — discriminate friend from foe, share the picture between units with a Cursor-on-Target-style link, and validate against real Ukraine UAV-strike data. No new sensors, no new pipeline.” Honesty line: real modalities/data, synthetic *scenario*.</div>
   </section>
 
   <!-- 4 · ARCHITECTURE -->
