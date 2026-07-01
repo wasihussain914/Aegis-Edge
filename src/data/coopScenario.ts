@@ -32,7 +32,10 @@ export const MARINE_BEACHHEAD: Unit = {
 // The Column starts well out of link range and drives toward the Beachhead, halting at standoff.
 const COLUMN_START = { x: 900, z: 0 };
 const COLUMN_STANDOFF_X = 200;
-const COLUMN_SPEED_MPS = 9;
+// 15 m/s: the Column closes into Link-16 range (gap ≤ 600m) by ~t20s — just as the inbound hostiles
+// (~t23s) arrive — so the picture FUSES right before the engagement, and the cooperative shot (not a
+// single-unit one) is what the audience sees. Kept < 17.5 m/s so the tested monotonic-close holds.
+const COLUMN_SPEED_MPS = 15;
 
 /**
  * Deterministic Column position at a given tick: it closes on the Beachhead at a fixed speed

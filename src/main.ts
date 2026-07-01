@@ -599,12 +599,16 @@ let prevJammed = false;                      // transition tracker for the unifi
 // a comms DEGRADATION outage (link bounces, tracks age → self-protect) and an enemy JAMMING blackout
 // (link denied, red sector). Case 1 stays clean. Deterministic by sim time.
 type Case2Phase = "up" | "degraded" | "jammed";
-const CASE2_CYCLE = 28;                      // seconds per full DDIL cycle
-function case2PhaseAt(t: number): Case2Phase {
-  const p = ((t % CASE2_CYCLE) + CASE2_CYCLE) % CASE2_CYCLE;
-  if (p >= 10 && p < 16) return "degraded";  // 6s comms outage → DELAYED then FAILED (self-protect)
-  if (p >= 21 && p < 26) return "jammed";    // 5s enemy EW blackout (link denied)
-  return "up";                               // otherwise fully fused
+let case2Start = 0;                          // sim time Case 2 was engaged → the cycle resets from here
+const CASE2_CYCLE = 26;                      // seconds per full DDIL cycle
+// The cycle is measured from when Case 2 was switched on, so it ALWAYS plays the same legible story:
+// ~6s clean fusion → 6s comms degradation (DELAYED → FAILED, self-protect) → recover → 6s enemy
+// jamming blackout (link + radars denied) → recover → loop. Predictable to narrate on stage.
+function case2PhaseAt(elapsed: number): Case2Phase {
+  const p = ((elapsed % CASE2_CYCLE) + CASE2_CYCLE) % CASE2_CYCLE;
+  if (p >= 6 && p < 12) return "degraded";   // comms outage
+  if (p >= 16 && p < 22) return "jammed";    // enemy EW blackout
+  return "up";                               // fully fused
 }
 const engaged = new Set<string>();          // shoot-and-shout: tracks already fired on (persists across ticks)
 // E1/E4: pending human-approval gates — a hostile that needs human approval pauses here; nothing
@@ -699,6 +703,7 @@ function setMode(m: OperatorMode): void {
 function setComms(c: CommsCase): void {
   if (c === commsCase) return;
   commsCase = c;
+  if (c === "intermittent") case2Start = simTime;   // restart the DDIL cycle from a clean fused phase
   for (const b of commsBtns) b.classList.toggle("active", b.dataset.comms === c);
   logEvent("COMMS", c === "intermittent"
     ? "Case 2 (contested / DDIL) — Link-16 will drop in and out; shared tracks may go stale."
@@ -1344,7 +1349,7 @@ function animate() {
   // DDIL link state: in Case 2 the phase cycle drives the drops (degradation outage / jamming blackout);
   // a manually-forced jammer (J) denies the link in any case. The link is up only when in range, not in
   // a degraded outage, and not jammed. Everything downstream reads this one `link`.
-  const phase: Case2Phase = commsCase === "intermittent" ? case2PhaseAt(simTime) : "up";
+  const phase: Case2Phase = commsCase === "intermittent" ? case2PhaseAt(simTime - case2Start) : "up";
   const case2Jam = phase === "jammed";
   const jammed = jammerActive || case2Jam;
   // EW blackout blinds the radars too: zero both units' sensor ranges so the core reports NOTHING
