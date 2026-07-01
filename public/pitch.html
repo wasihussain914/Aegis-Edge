@@ -199,6 +199,25 @@
     <div class="cue"><b>[8:50–9:40]</b> This slide answers “how do you actually move forward.” Emphasize SAPIENT as the single integration seam and Greengrass as the deploy target.</div>
   </section>
 
+  <!-- 6b · COST & OPTIMIZATION -->
+  <section class="slide">
+    <div class="kicker">Cost &amp; optimization <span class="tag">10%</span></div>
+    <h2>The money is in sensors &amp; effectors — we're the cheap keystone.</h2>
+    <ul>
+      <li><b>Per-site capex</b> — Light (mobile) ~$150–450k · Standard (fixed) ~$0.5–1.5M · Heavy (base) ~$1.5–5M+. Radar / RF / EO-IR + effector dominate; <b>our software is single-digit %</b> of that.</li>
+      <li><b>Cloud is tiny and FLAT</b> — Bedrock is off the hot path &amp; throttled (~$15–75/mo/site) and <b>doesn't grow with drone count</b>; the deterministic gate is near-free (<b>0.58 µs</b>/decision, measured). Cloud ≈ <b>1–5% of TCO</b>.</li>
+      <li><b>Deploy into what exists</b> — AWS <b>Modular Data Center</b> (ruggedized, DDIL-built) under the <b>$9B JWCC</b> vehicle. No infrastructure to build.</li>
+      <li><b>Capital-light</b> — we sell software + integration per site; the customer/partner owns the hardware. At 100 sites our layer is <b>low single-digit % of TCO</b>.</li>
+    </ul>
+    <div class="metrics">
+      <div class="metric"><b>~$15–75</b>/mo cloud · per site</div>
+      <div class="metric"><b>FLAT</b>cost under a swarm</div>
+      <div class="metric"><b>1–5%</b>cloud share of TCO</div>
+      <div class="metric"><b>$2.5B→$30.3B</b>market by 2035</div>
+    </div>
+    <div class="cue"><b>[~20s · part of the 8:50–9:40 criterion-5 window, after the roadmap]</b> One line: "The expensive part — the LLM — is off the hot path and throttled, so cost is flat under a swarm; at fleet scale our software is a few percent of TCO, on a market headed to $30 B." Full detail in COST-ANALYSIS.md.</div>
+  </section>
+
   <!-- 7 · CLOSE -->
   <section class="slide">
     <div class="kicker">Close</div>
