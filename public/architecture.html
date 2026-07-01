@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Aegis-Edge · Architecture</title>
+<style>
+  :root {
+    --bg:#0a0e14; --panel:#0f1725; --panel2:#131d2e; --line:#1e2a3d; --line2:#2b3a52;
+    --ink:#e7eefb; --sub:#9fb2d0; --faint:#6f87ad;
+    --aws:#ff9900; --bronze:#ffb454; --blue:#6fa8ff; --green:#5dd6a0; --red:#ff5a4d; --cyan:#9fe8ff; --violet:#b79cff;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace; --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:
+      radial-gradient(1200px 700px at 85% -10%, rgba(111,168,255,.08), transparent 60%),
+      radial-gradient(1000px 700px at -5% 110%, rgba(255,153,0,.06), transparent 55%), var(--bg);
+    color:var(--ink); font-family:var(--sans); padding:26px 30px 48px; }
+  header { display:flex; justify-content:space-between; align-items:flex-end; gap:20px; flex-wrap:wrap; margin-bottom:18px; }
+  h1 { font-size:30px; letter-spacing:-.5px; font-weight:800; }
+  h1 span { color:var(--bronze); }
+  .tagline { color:var(--sub); font-size:14px; margin-top:4px; }
+  .legend { display:flex; gap:14px; flex-wrap:wrap; font-family:var(--mono); font-size:11.5px; color:var(--sub); }
+  .legend b { color:var(--ink); font-weight:600; }
+  .dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:5px; vertical-align:middle; }
+  .live { background:var(--green); } .arch { background:transparent; border:1.5px solid var(--faint); }
+  .board { display:grid; grid-template-columns: 210px 1fr 210px; gap:16px; align-items:stretch; }
+  .rail { display:flex; flex-direction:column; gap:12px; }
+  .railhead { font-family:var(--mono); font-size:11px; letter-spacing:1.5px; text-transform:uppercase; color:var(--faint); padding:2px 2px 0; }
+  .flow { display:flex; flex-direction:column; gap:0; }
+  .layer { background:linear-gradient(180deg, var(--panel2), var(--panel)); border:1px solid var(--line); border-radius:14px; padding:15px 18px; }
+  .layer.acc { border-color:#3a4a2a; box-shadow:0 0 0 1px rgba(93,214,160,.12) inset; }
+  .layer.aws { border-color:#5a3f12; box-shadow:0 0 0 1px rgba(255,153,0,.14) inset; }
+  .ltitle { display:flex; align-items:center; gap:9px; font-family:var(--mono); font-size:12px; letter-spacing:1px; text-transform:uppercase; color:var(--bronze); margin-bottom:11px; }
+  .layer.aws .ltitle { color:var(--aws); }
+  .layer.acc .ltitle { color:var(--green); }
+  .ltitle .z { margin-left:auto; font-size:10.5px; color:var(--faint); letter-spacing:.5px; text-transform:none; }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; }
+  .chip { display:inline-flex; align-items:center; gap:6px; background:#0c1422; border:1px solid var(--line2); border-radius:8px;
+    padding:7px 11px; font-size:13px; color:var(--ink); }
+  .chip small { color:var(--faint); font-size:11px; }
+  .chip.key { border-color:var(--bronze); background:rgba(255,180,84,.08); font-weight:650; }
+  .chip.awss { border-color:#6a4a15; }
+  .chip .d { width:8px; height:8px; border-radius:50%; }
+  .conn { height:22px; display:flex; align-items:center; justify-content:center; color:var(--faint); font-size:15px; position:relative; }
+  .conn span { font-family:var(--mono); font-size:10px; color:var(--faint); background:var(--bg); padding:0 8px; }
+  .spon { background:var(--panel); border:1px solid var(--line); border-radius:11px; padding:11px 13px; }
+  .spon .nm { font-weight:750; font-size:14px; display:flex; align-items:center; gap:7px; }
+  .spon .ro { color:var(--sub); font-size:12px; line-height:1.34; margin-top:5px; }
+  .spon .tag { font-family:var(--mono); font-size:9.5px; letter-spacing:.5px; color:var(--faint); text-transform:uppercase; }
+  .blt { width:10px; height:10px; border-radius:3px; display:inline-block; }
+  .flowpath { margin-top:22px; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px 20px; }
+  .flowpath h3 { font-family:var(--mono); font-size:12px; letter-spacing:1.5px; text-transform:uppercase; color:var(--bronze); margin-bottom:12px; }
+  .steps { display:flex; flex-wrap:wrap; gap:9px; align-items:center; font-size:13.5px; color:var(--ink); }
+  .steps .s { background:#0c1422; border:1px solid var(--line2); border-radius:8px; padding:6px 11px; }
+  .steps .s b { color:var(--cyan); } .steps .ar { color:var(--faint); }
+  .note { color:var(--faint); font-size:12px; margin-top:12px; line-height:1.5; }
+  .note b { color:var(--sub); }
+</style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>AEGIS&#8209;EDGE — <span>Reference Architecture</span></h1>
+      <div class="tagline">Governable cooperative counter&#8209;UAS · deterministic gate decides · human authorizes · LLM off the kill chain · resilient under DDIL</div>
+    </div>
+    <div class="legend">
+      <span><span class="dot live"></span><b>live in PoC</b></span>
+      <span><span class="dot arch"></span><b>architected / partner integration</b></span>
+      <span style="color:var(--aws)"><b>■</b> AWS service</span>
+    </div>
+  </header>
+
+  <div class="board">
+
+    <!-- LEFT RAIL: platform + deploy -->
+    <div class="rail">
+      <div class="railhead">Platform &amp; Deploy</div>
+      <div class="spon"><div class="nm"><span class="blt" style="background:#fc6d26"></span>GitLab</div>
+        <div class="ro">CI/CD + DevSecOps: runs the 45 tests, SAST/DAST, signs &amp; ships the edge components (GitOps).</div>
+        <div class="tag">○ pipeline</div></div>
+      <div class="spon"><div class="nm"><span class="blt" style="background:#ee0000"></span>Red&nbsp;Hat</div>
+        <div class="ro">Hardened edge OS — RHEL / Device Edge (MicroShift); OpenShift for the cloud plane; Ansible fleet automation.</div>
+        <div class="tag">○ runtime</div></div>
+      <div class="spon"><div class="nm"><span class="blt" style="background:#5b2a86"></span>Spectro&nbsp;Cloud</div>
+        <div class="ro">Palette manages the edge Kubernetes fleet across many sites — multi&#8209;site scale, no lock&#8209;in.</div>
+        <div class="tag">○ edge fleet</div></div>
+      <div class="spon"><div class="nm"><span class="blt" style="background:#054ada"></span>IBM</div>
+        <div class="ro">watsonx.governance for model risk &amp; hybrid&#8209;cloud integration on mission&#8209;critical gov workloads.</div>
+        <div class="tag">○ governance</div></div>
+    </div>
+
+    <!-- CENTER: data plane flow -->
+    <div class="flow">
+      <div class="layer">
+        <div class="ltitle">1 · Threat &amp; airspace <span class="z">contested airspace</span></div>
+        <div class="chips">
+          <span class="chip">Single hostile UAS</span>
+          <span class="chip">Saturating swarm</span>
+          <span class="chip">Cooperative traffic <small>ADS&#8209;B / Remote ID</small></span>
+        </div>
+      </div>
+      <div class="conn">▼<span>detections</span></div>
+
+      <div class="layer">
+        <div class="ltitle">2 · Sensing @ edge <span class="z">SAPIENT / BSI Flex 335</span></div>
+        <div class="chips">
+          <span class="chip"><span class="d" style="background:var(--blue)"></span>Radar</span>
+          <span class="chip"><span class="d" style="background:var(--violet)"></span>RF / SIGINT</span>
+          <span class="chip"><span class="d" style="background:var(--green)"></span>EO / IR</span>
+          <span class="chip key">SAPIENT interface <small>open C&#8209;UAS interop — partners plug in</small></span>
+        </div>
+      </div>
+      <div class="conn">▼<span>tracks</span></div>
+
+      <div class="layer acc">
+        <div class="ltitle">3 · Edge core — the governed loop <span class="z">● runs offline in DDIL</span></div>
+        <div class="chips">
+          <span class="chip">IMM tracker / predictor</span>
+          <span class="ar" style="color:var(--faint);align-self:center">→</span>
+          <span class="chip key">Deterministic ROE gate <small>&lt;1 ms · auditable</small></span>
+          <span class="ar" style="color:var(--faint);align-self:center">→</span>
+          <span class="chip">Effector tasking <small>SAPIENT</small></span>
+          <span class="chip">Hash&#8209;chained Ed25519 ledger</span>
+        </div>
+        <div class="chips" style="margin-top:8px">
+          <span class="chip awss"><span class="d" style="background:var(--aws)"></span>AWS IoT Greengrass</span>
+          <span class="chip awss"><span class="d" style="background:var(--aws)"></span>Snowball Edge</span>
+          <span class="chip">Human gate · two&#8209;person auth</span>
+        </div>
+      </div>
+      <div class="conn">▼<span>Link&#8209;16 fusion · async + throttled uplink · PACE fallback</span></div>
+
+      <div class="layer aws">
+        <div class="ltitle">4 · Cloud — AWS GovCloud (IL5) <span class="z">explain · store · govern</span></div>
+        <div class="chips">
+          <span class="chip awss key"><span class="d" style="background:var(--aws)"></span>Amazon Bedrock — Anthropic Claude <small>● threat assessment, OFF the kill chain</small></span>
+          <span class="chip awss"><span class="d" style="background:var(--aws)"></span>S3 Object&#8209;Lock (WORM)</span>
+          <span class="chip awss"><span class="d" style="background:var(--aws)"></span>KMS</span>
+          <span class="chip awss"><span class="d" style="background:var(--aws)"></span>IAM</span>
+          <span class="chip awss"><span class="d" style="background:var(--aws)"></span>CloudWatch</span>
+        </div>
+        <div class="chips" style="margin-top:8px">
+          <span class="chip"><span class="blt" style="background:#00bfb3;border-radius:50%"></span>Elastic <small>track/ledger search · vector context</small></span>
+        </div>
+      </div>
+      <div class="conn">▼<span>plain&#8209;English rationale · signed audit</span></div>
+
+      <div class="layer">
+        <div class="ltitle">5 · Operator C2 <span class="z">3D sim &amp; 2D console</span></div>
+        <div class="chips">
+          <span class="chip">Air picture &amp; mission log</span>
+          <span class="chip key">Human approval gate</span>
+          <span class="chip">Immutable audit review</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT RAIL: cross-cutting observe/secure/identity -->
+    <div class="rail">
+      <div class="railhead">Observe · Secure · Identity</div>
+      <div class="spon"><div class="nm"><span class="blt" style="background:#632ca6"></span>Datadog</div>
+        <div class="ro">Observability across edge+cloud: gate&#8209;latency SLO (&lt;1 ms), Bedrock cost/latency, ledger&#8209;write health, sensor uptime.</div>
+        <div class="tag">○ observability</div></div>
+      <div class="spon"><div class="nm"><span class="blt" style="background:#ff5a3c"></span>Rapid7</div>
+        <div class="ro">Secures the defender: MDR, exposure &amp; vuln management on the C&#8209;UAS platform itself.</div>
+        <div class="tag">○ platform security</div></div>
+      <div class="spon"><div class="nm"><span class="blt" style="background:#00297a"></span>Okta</div>
+        <div class="ro">Operator identity + MFA + RBAC — <b style="color:var(--cyan)">enforces the two&#8209;person authorization</b> on every engagement.</div>
+        <div class="tag">○ identity &amp; auth</div></div>
+      <div class="spon"><div class="nm"><span class="blt" style="background:var(--aws)"></span>AWS backbone</div>
+        <div class="ro">Greengrass · Bedrock · S3 · KMS · IAM · CloudWatch on GovCloud IL5.</div>
+        <div class="tag">● core</div></div>
+    </div>
+  </div>
+
+  <div class="flowpath">
+    <h3>Data flow — one governed decision</h3>
+    <div class="steps">
+      <span class="s">sensors</span><span class="ar">→</span>
+      <span class="s"><b>SAPIENT</b> normalize</span><span class="ar">→</span>
+      <span class="s">IMM track</span><span class="ar">→</span>
+      <span class="s"><b>deterministic gate &lt;1ms</b></span><span class="ar">→</span>
+      <span class="s">human gate (Okta 2&#8209;person)</span><span class="ar">→</span>
+      <span class="s">effector (SAPIENT)</span><span class="ar">→</span>
+      <span class="s">signed ledger → S3 WORM</span>
+      <span class="ar">⇢ async ⇢</span>
+      <span class="s"><b>Bedrock / Claude</b> explains</span>
+    </div>
+    <div class="note"><b>The kill chain is deterministic and offline&#8209;capable.</b> When the link and cloud are denied (DDIL), steps 1&#8209;7 keep running on the edge; only the Claude assessment (step 8) is deferred — it narrates, it never gates a shot. Datadog / Rapid7 / Okta are cross&#8209;cutting; GitLab / Red Hat / Spectro Cloud / IBM build, run, and scale the platform.</div>
+  </div>
+</body>
+</html>
