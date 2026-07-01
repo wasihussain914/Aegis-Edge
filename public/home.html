@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Aegis-Edge — Governable Counter-UAS at the Edge</title>
+<style>
+  :root{--bg:#0a0e14;--ink:#e7eefb;--sub:#9fb2d0;--faint:#6f87ad;--bronze:#ffb454;--blue:#6fa8ff;--green:#5dd6a0;--line:#1e2a3d;
+    --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;--mono:ui-monospace,Menlo,Consolas,monospace;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{background:
+      radial-gradient(1100px 640px at 80% -10%,rgba(111,168,255,.12),transparent 60%),
+      radial-gradient(900px 620px at -5% 110%,rgba(255,180,84,.09),transparent 55%),var(--bg);
+    color:var(--ink);font-family:var(--sans);display:flex;align-items:center;justify-content:center;padding:6vh 6vw;min-height:100%}
+  .wrap{max-width:920px;width:100%}
+  .kick{font-family:var(--mono);font-size:13px;letter-spacing:3px;text-transform:uppercase;color:var(--bronze);margin-bottom:16px}
+  h1{font-size:64px;line-height:1.02;letter-spacing:-1.5px;font-weight:850}
+  h1 span{color:var(--bronze)}
+  .lede{font-size:22px;color:var(--sub);line-height:1.45;margin-top:16px;max-width:60ch}
+  .thesis{font-size:19px;line-height:1.35;margin-top:20px;color:var(--ink);border-left:3px solid var(--bronze);padding-left:16px;max-width:56ch}
+  .btns{display:flex;flex-wrap:wrap;gap:14px;margin-top:34px}
+  a.btn{display:inline-flex;align-items:center;gap:10px;text-decoration:none;font-weight:700;font-size:16px;
+    padding:15px 22px;border-radius:11px;border:1px solid var(--line);color:var(--ink);background:#101725;transition:transform .08s,border-color .15s}
+  a.btn:hover{transform:translateY(-2px);border-color:var(--blue)}
+  a.btn.primary{background:linear-gradient(180deg,#ffbf6b,#ef9f38);color:#231402;border-color:#ffbf6b}
+  a.btn .em{font-size:19px}
+  .metrics{display:flex;flex-wrap:wrap;gap:10px;margin-top:30px}
+  .m{font-family:var(--mono);font-size:13px;color:var(--sub);background:#101725;border:1px solid var(--line);border-radius:9px;padding:9px 13px}
+  .m b{color:var(--bronze);display:block;font-size:18px}
+  .foot{margin-top:30px;font-family:var(--mono);font-size:12px;color:var(--faint)}
+  .foot a{color:var(--blue);text-decoration:none}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="kick">AWS Global Government Hackathon · Counter-UAS</div>
+    <h1>AEGIS&#8209;<span>EDGE</span></h1>
+    <div class="lede">Governable, jam-resilient, <b style="color:var(--blue)">cooperative</b> counter-drone defense — decided at the edge.</div>
+    <div class="thesis">Machine-speed decisions. A human authorizes every kill. The LLM never touches the trigger.</div>
+
+    <div class="btns">
+      <a class="btn primary" href="sim.html"><span class="em">▶</span> Launch the 3D demo</a>
+      <a class="btn" href="pitch.html"><span class="em">📊</span> Pitch deck</a>
+      <a class="btn" href="aws-diagram.html"><span class="em">🗺️</span> AWS architecture</a>
+      <a class="btn" href="https://github.com/wasihussain914/Aegis-Edge"><span class="em">&lt;/&gt;</span> Source</a>
+    </div>
+
+    <div class="metrics">
+      <div class="m"><b>~0.58 µs</b>engagement decision (measured)</div>
+      <div class="m"><b>&lt;0.1%</b>false-positive vs friendly</div>
+      <div class="m"><b>56</b>tests green</div>
+      <div class="m"><b>DDIL</b>edge-autonomous under jamming</div>
+    </div>
+
+    <div class="foot">
+      Deterministic ROE gate · human-in-the-loop · LLM off the kill chain · Link-16 cooperative fusion · AWS GovCloud (edge Greengrass + Bedrock).<br>
+      Tip: the 3D demo is best in a desktop browser with WebGL. Live threat-call uses Amazon Bedrock; on this static host it shows the offline explanation.
+    </div>
+  </div>
+</body>
+</html>
