@@ -654,6 +654,20 @@ function spawnTracer(from: THREE.Vector3, to: THREE.Vector3): void {
   tracers.push({ line, pos, ttl: 1 });
 }
 
+// kill burst: a bright expanding shell + flash at the moment a drone is defeated
+interface Burst { mesh: THREE.Mesh; flash: THREE.PointLight; ttl: number; }
+const bursts: Burst[] = [];
+function spawnBurst(pos: THREE.Vector3): void {
+  const mesh = new THREE.Mesh(
+    new THREE.SphereGeometry(5, 18, 12),
+    new THREE.MeshBasicMaterial({ color: 0xffb04d, transparent: true, opacity: 0.95, depthWrite: false })
+  );
+  mesh.position.copy(pos); mesh.frustumCulled = false; scene.add(mesh);
+  const flash = new THREE.PointLight(0xffa63c, 6, 260, 2);
+  flash.position.copy(pos); scene.add(flash);
+  bursts.push({ mesh, flash, ttl: 1 });
+}
+
 // --- Phase E operator controls (E1 mode / E2 comms / E3 perspective) + the E4 approval gate UI ---
 // All three switches flip a single deterministic-core input live; the core re-decides next tick.
 const coopGateEl = document.getElementById("coopgate")!;
@@ -806,6 +820,7 @@ interface Live {
   decision?: GateDecision;            // T7: latched human-gate outcome for this track
   fusedMods: Set<string>;             // D8: distinct sensor modalities holding this track this frame
   detected: boolean;                  // false until a sensor first acquires it → then revealed/classified
+  dead?: boolean;                     // operator-destroyed → hidden + skipped
 }
 
 // --- T7 governance: recommend-only DEFEAT requires a 2-person human gate (R3.1) ---
@@ -1035,6 +1050,29 @@ function selectTrack(l: Live): void {
   showPanel(l);
 }
 
+/** Operator manual defeat: destroy the selected single-site drone — burst + sound + audit-ledger entry. */
+function killLive(l: Live): void {
+  if (l.dead) return;
+  l.dead = true;
+  spawnBurst(l.group.position.clone());
+  playAttack();
+  l.group.visible = false; l.trail.visible = false; l.label.visible = false;
+  l.dropLine.visible = false; l.reticle.visible = false; if (l.ring) l.ring.visible = false;
+  appendLedger(l, "DEFEAT-AUTHORIZED", ["operator (manual defeat)"]);
+  logEvent("DESTROYED", `${l.track.id} neutralized — operator manual defeat; effector hit confirmed.`, simTime, "kill");
+  const db = document.getElementById("destroyBtn") as HTMLButtonElement | null;
+  if (db) { db.textContent = "✓ TARGET NEUTRALIZED"; db.disabled = true; db.classList.add("done"); }
+}
+
+/** Operator manual defeat for a coop hostile — routes through the same `engaged` kill path + a burst. */
+function killCoop(d: CoopDroneView): void {
+  if (d.dead) return;
+  spawnBurst(d.group.position.clone());
+  engaged.add(d.track.id);   // the engagement loop marks it dead, logs DESTROYED and plays the sound
+  const db = document.getElementById("destroyBtn") as HTMLButtonElement | null;
+  if (db) { db.textContent = "✓ TARGET NEUTRALIZED"; db.disabled = true; db.classList.add("done"); }
+}
+
 // D3: a coop drone click shows BOTH a classification rationale and an engagement rationale (DOD-11).
 // Deterministic templates from the core — the LLM may rephrase later, never the call. The faction +
 // threat read mirrors the B3 coloring; the engagement line is the core's resolveEngagement rationale.
@@ -1058,15 +1096,19 @@ function selectCoopDrone(d: CoopDroneView): void {
     `<h2>${FACTION_LABEL[t.faction]} · threat ${t.threat}</h2>` +
     `<div class="why"><span class="src src-off">○ classification</span>${coopClassRationale(t)}</div>` +
     `<div class="why" style="margin-top:8px;"><span class="src src-ai">◆ engagement</span>${eng}</div>` +
-    `<div class="row" style="margin-top:10px;color:#5f7799;"><span>mode ${operatorMode} · ${linkNow ? "link up" : "link down"}</span><span>LLM off kill-chain</span></div>`;
+    `<div class="row" style="margin-top:10px;color:#5f7799;"><span>mode ${operatorMode} · ${linkNow ? "link up" : "link down"}</span><span>LLM off kill-chain</span></div>` +
+    (d.dead ? `<button class="destroybtn done" disabled>✓ TARGET NEUTRALIZED</button>`
+      : t.faction === "hostile" ? `<button id="destroyBtn" class="destroybtn">💥 DESTROY TARGET</button>` : "");
   panel.classList.add("show");
+  const db = document.getElementById("destroyBtn") as HTMLButtonElement | null;
+  if (db) db.onclick = () => killCoop(d);
 }
 
 addEventListener("click", (e) => {
   mouse.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
   ray.setFromCamera(mouse, camera);
-  const liveHit = ray.intersectObjects(live.map((l) => l.body), false)[0];
-  const coopHit = ray.intersectObjects(coopDrones.map((d) => d.body), false)[0];
+  const liveHit = ray.intersectObjects(live.filter((l) => !l.dead).map((l) => l.body), false)[0];
+  const coopHit = ray.intersectObjects(coopDrones.filter((d) => !d.dead).map((d) => d.body), false)[0];
   // pick the nearest hit across the single-site and coop drone sets
   if (coopHit && (!liveHit || coopHit.distance < liveHit.distance)) {
     stopDemo();
@@ -1089,9 +1131,13 @@ function showPanel(l: Live) {
     `<div class="why" id="why"><span class="src" id="src">⏳ AI narrating…</span>${explainTemplate(k)}</div>` +
     k.contributions.map((c) => `<div class="row"><span>${c.feature}</span><span>${c.weight > 0 ? "+" : ""}${c.weight}</span></div>`).join("") +
     `<div class="row" style="margin-top:10px;color:#5f7799;"><span>recommend-only · human-gated</span><span>LLM off kill-chain</span></div>` +
-    (k.threat === "HIGH" ? gateHtml(l) : "");
+    (k.threat === "HIGH" ? gateHtml(l) : "") +
+    (l.dead ? `<button class="destroybtn done" disabled>✓ TARGET NEUTRALIZED</button>`
+      : k.threat !== "NONE" ? `<button id="destroyBtn" class="destroybtn">💥 DESTROY TARGET</button>` : "");
   panel.classList.add("show");
   if (k.threat === "HIGH") wireGate(l);
+  const db = document.getElementById("destroyBtn") as HTMLButtonElement | null;
+  if (db) db.onclick = () => killLive(l);
 
   // Narrate OFF the kill chain: Bedrock (Nova) when creds/bridge are live, else offline template.
   // The classification above is already drawn and never changes; only the prose is replaced.
@@ -1606,8 +1652,16 @@ function animate() {
     if (tr.ttl <= 0) { scene.remove(tr.line); tracers.splice(i, 1); continue; }
     (tr.line.material as THREE.LineBasicMaterial).opacity = Math.max(0, tr.ttl);
   }
+  for (let i = bursts.length - 1; i >= 0; i--) {   // kill bursts play out on real dt so they always finish
+    const b = bursts[i]; b.ttl -= dt * 1.8;
+    if (b.ttl <= 0) { scene.remove(b.mesh); scene.remove(b.flash); bursts.splice(i, 1); continue; }
+    b.mesh.scale.setScalar(1 + (1 - b.ttl) * 7);
+    (b.mesh.material as THREE.MeshBasicMaterial).opacity = Math.max(0, b.ttl * 0.9);
+    b.flash.intensity = b.ttl * 6;
+  }
   linkWasUp = link;
   for (const l of live) {
+    if (l.dead) continue;                         // operator-destroyed → hidden, no longer animated
     // Arc-length lookups: u is fraction of distance, so ground speed is constant in m/s
     // regardless of how the spline bunches near waypoints (smooth, real-looking motion).
     const u = ((l.t % 1) + 1) % 1;
@@ -1713,6 +1767,7 @@ function animate() {
   // detection lines: a sensor sees a track when it's in range AND inside the current scan lobe
   for (const l of live) l.fusedMods.clear();   // D8: recompute multi-sensor fusion fresh each frame
   for (const d of detLines) {
+    if (d.l.dead) { d.op = 0; d.line.visible = false; continue; }   // destroyed → no detection lines
     const tp = d.l.group.position;
     const dx = tp.x - d.s.site.x, dz = tp.z - d.s.site.z;
     const range = Math.hypot(dx, dz);
@@ -1780,10 +1835,10 @@ function animate() {
   }
   if (camAnimT >= 1 && !followHostile) controls.update();          // operator orbit + damping
   else camera.lookAt(controls.target);
-  const fusedCount = live.filter((l) => l.fusedMods.size >= 2).length;  // D8: multi-sensor tracks
+  const fusedCount = live.filter((l) => !l.dead && l.fusedMods.size >= 2).length;  // D8: multi-sensor tracks
   // D11: tally tracks per threat level and write the live counts into the legend swatches
   const tally: Record<string, number> = { HIGH: 0, MED: 0, LOW: 0, NONE: 0 };
-  for (const l of live) if (l.detected) tally[l.cls.threat] = (tally[l.cls.threat] ?? 0) + 1;
+  for (const l of live) if (l.detected && !l.dead) tally[l.cls.threat] = (tally[l.cls.threat] ?? 0) + 1;
   for (const [lvl, el] of legendCounts) el.textContent = String(tally[lvl] ?? 0);
   clockEl.textContent = `T+${simTime.toFixed(1)}s · ${live.length} tracks · ${tally.HIGH} HIGH · ${fusedCount} FUSED`;
   composer.render();

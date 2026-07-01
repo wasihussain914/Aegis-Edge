@@ -126,6 +126,13 @@
       #coopgate .gate button.appr:hover { border-color: #5dd6a0; color: #b6ffd9; }
       #coopgate .gate button.deny { border-color: #6f3030; color: #ff9aa2; }
       #coopgate .gate button.deny:hover { border-color: #ff6b78; }
+      .destroybtn { display: block; width: 100%; margin-top: 12px; padding: 9px 0; cursor: pointer;
+        font: 800 12px/1 ui-monospace, Menlo, monospace; letter-spacing: 1px; border-radius: 7px;
+        color: #fff; background: linear-gradient(180deg,#ff5a4d,#d8352a); border: 1px solid #ff7063;
+        box-shadow: 0 0 14px rgba(255,77,58,.35); transition: filter .1s ease; }
+      .destroybtn:hover { filter: brightness(1.12); }
+      .destroybtn:active { filter: brightness(.92); }
+      .destroybtn.done { background: #1c2b22; border-color: #2f6f4a; color: #7df0b8; box-shadow: none; cursor: default; }
       #pausedBadge { position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
         display: none; z-index: 50; padding: 6px 14px; border-radius: 7px;
         font: 700 12px/1 ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: 1.5px;
