@@ -73,7 +73,10 @@ it scales under a saturating swarm: the cost is the tracker and the effectors, n
 
 ## Presentation & docs
 
-- `public/pitch.html` — the 8-slide pitch deck (arrow keys / **F** fullscreen).
+- **[HOW-IT-WORKS.md](HOW-IT-WORKS.md)** — the governed decision loop (sensors → IMM tracker →
+  deterministic classifier → ROE gate → human gate → effector → ledger), edge/cloud split, and a code map.
+- **[DATASETS.md](DATASETS.md)** — the real sensor-modality datasets, how each is used, and the honesty framing.
+- `public/pitch.html` — the pitch deck (arrow keys / **F** fullscreen).
 - `public/aws-diagram.html` — the **official-AWS-style** reference architecture (Kinesis → Greengrass gate → Bedrock; grounded in the verified runtime).
 - `public/architecture.html` — the layered edge/cloud + sponsors architecture view.
 - `PITCH-SCRIPT.md` — the timed 10-minute presenter script, mapped to all 5 judging criteria.

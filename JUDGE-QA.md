@@ -110,8 +110,44 @@ If a judge doubts realism, point to the platform: *"the tracker is a real Intera
 ---
 
 ### One-line honesty guardrails (memorize)
-- Scenario = synthetic; **tracker + telemetry = real (IMM over Kaggle)**.
+- Scenario = synthetic; **tracker + telemetry = real (IMM over real data)**.
 - IL5 / GovCloud = **targeted**, not deployed.
 - Sponsors = **integrated** architecture; only **Anthropic/Claude is live**.
 - <0.1% FP = by construction, **cooperative traffic only**.
-- <1 ms = pure-function claim, easily benchmarked.
+- <1 ms = pure-function claim, **measured at ~0.58 µs** (`npm run bench`).
+
+---
+
+## v2 — sharpest answers (the exact framings)
+
+**Q: What kind of model decides which drones to engage?**
+> A **deterministic weighted-feature classifier — transparent rules, not a neural network** — by design,
+> for explainability and accreditation. The ML in the system is the **IMM** (statistical tracker) and a
+> **trained image classifier** for the optical modality; the LLM only explains.
+
+**Q: The 0.58 µs — that's detection speed?**
+> No — the **engagement decision** once a track is classified (who shoots, what, human-or-not).
+> Detection/tracking is the IMM, a separate step. 0.58 µs is measured over 200k runs.
+
+**Q: How does the "AI" decide what's a threat and what to do?**
+> Two deterministic stages: a rules-based classifier (sensor features → threat), then a ROE gate
+> (cheapest in-range effector, positive-ID, fratricide, two-person). The LLM is off both — it explains.
+
+**Q: Walk me through your datasets / did you train end-to-end?**
+> Four real modalities — RF (DroneRF), thermal (HIT-UAV), cooperative ADS-B (adsb.lol, OpenSky),
+> linking (Cursor-on-Target) — validated against real Ukraine UAV-strike data. Optical model is trained;
+> tracker is an IMM over real telemetry; engagement classification is deterministic rules. **No
+> end-to-end black-box training.** See `DATASETS.md`.
+
+**Q: Fiber-optic FPV beats RF jamming — how do you handle it?**
+> We don't depend on RF: thermal + radar still detect it, and when the gate sees no RF emitter it
+> **escalates the effector from jamming to kinetic automatically.** We planned for the counter-counter.
+
+**Q: Which parts did *you* build?**
+> The 3D tactical sim, the cooperative + DDIL engagement logic, and the integration this window; the 2D
+> operator console is my teammate **Berg's**; it builds on our prior governed-runtime platform, disclosed
+> in the repo.
+
+**Q: 3D engine? Why?**
+> **three.js / WebGL**, TypeScript + Vite, all procedural geometry — the demo is a URL in any browser,
+> no install, loads instantly.
