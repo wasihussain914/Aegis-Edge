@@ -74,7 +74,8 @@ it scales under a saturating swarm: the cost is the tracker and the effectors, n
 ## Presentation & docs
 
 - `public/pitch.html` — the 8-slide pitch deck (arrow keys / **F** fullscreen).
-- `public/architecture.html` — the AWS reference-architecture diagram (edge/cloud + sponsors).
+- `public/aws-diagram.html` — the **official-AWS-style** reference architecture (Kinesis → Greengrass gate → Bedrock; grounded in the verified runtime).
+- `public/architecture.html` — the layered edge/cloud + sponsors architecture view.
 - `PITCH-SCRIPT.md` — the timed 10-minute presenter script, mapped to all 5 judging criteria.
 - `JUDGE-QA.md` — anticipated judge questions + grounded answers + honesty guardrails.
 - `COST-ANALYSIS.md` — big-picture cost analysis (per-site capex/opex, AWS MDC, unit economics).
