@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Aegis-Edge · Pitch</title>
+<style>
+  :root {
+    --bg: #0a0e14; --panel: #101725; --line: #1e2a3d; --line2: #2b3a52;
+    --ink: #e7eefb; --sub: #9fb2d0; --faint: #6f87ad;
+    --bronze: #ffb454; --blue: #6fa8ff; --green: #5dd6a0; --red: #ff5a4d; --cyan: #9fe8ff;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--bg); color: var(--ink); font-family: var(--sans); overflow: hidden; }
+  #deck { height: 100vh; width: 100vw; position: relative; }
+  .slide {
+    position: absolute; inset: 0; display: none; flex-direction: column;
+    padding: 6vh 7vw; opacity: 0; transition: opacity .28s ease;
+    background:
+      radial-gradient(1200px 700px at 78% -10%, rgba(111,168,255,.10), transparent 60%),
+      radial-gradient(900px 600px at 0% 110%, rgba(255,180,84,.08), transparent 55%);
+  }
+  .slide.on { display: flex; opacity: 1; }
+  .kicker { font-family: var(--mono); font-size: 13px; letter-spacing: 3px; text-transform: uppercase;
+    color: var(--bronze); margin-bottom: 18px; }
+  h1 { font-size: 62px; line-height: 1.02; letter-spacing: -1px; font-weight: 800; }
+  h2 { font-size: 40px; line-height: 1.08; letter-spacing: -.5px; font-weight: 750; margin-bottom: 6px; }
+  .lede { font-size: 22px; color: var(--sub); line-height: 1.4; margin-top: 16px; max-width: 60ch; }
+  .thesis { font-size: 26px; line-height: 1.3; margin-top: 22px; color: var(--ink); max-width: 46ch;
+    border-left: 3px solid var(--bronze); padding-left: 18px; }
+  ul { list-style: none; margin-top: 22px; display: flex; flex-direction: column; gap: 14px; }
+  li { font-size: 21px; line-height: 1.32; color: var(--ink); padding-left: 30px; position: relative; max-width: 66ch; }
+  li::before { content: "▸"; color: var(--bronze); position: absolute; left: 4px; top: 1px; }
+  li b { color: var(--cyan); font-weight: 700; }
+  li .g { color: var(--green); } li .r { color: var(--red); } li .bl { color: var(--blue); }
+  .sub { color: var(--sub); font-size: 18px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 22px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 20px 22px; }
+  .card h3 { font-family: var(--mono); font-size: 13px; letter-spacing: 2px; text-transform: uppercase; color: var(--bronze); margin-bottom: 10px; }
+  .card.edge h3 { color: var(--green); } .card.cloud h3 { color: var(--blue); }
+  .card p { font-size: 17px; line-height: 1.4; color: var(--ink); }
+  .card .m { font-family: var(--mono); font-size: 14px; color: var(--sub); margin-top: 8px; }
+  .metrics { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 26px; }
+  .metric { background: var(--panel); border: 1px solid var(--line2); border-radius: 10px; padding: 12px 16px;
+    font-family: var(--mono); font-size: 15px; }
+  .metric b { color: var(--bronze); font-size: 20px; display: block; }
+  .demo-big { font-size: 96px; font-weight: 850; letter-spacing: -2px; color: var(--bronze);
+    text-shadow: 0 0 40px rgba(255,180,84,.25); }
+  .demo-arc { margin-top: 20px; }
+  .demo-arc li { font-size: 23px; }
+  .demo-arc li b { color: var(--bronze); }
+  .cue { margin-top: auto; font-family: var(--mono); font-size: 13px; color: var(--faint);
+    border-top: 1px solid var(--line); padding-top: 12px; line-height: 1.5; max-width: 92ch; }
+  .cue b { color: var(--sub); }
+  .flow { display: flex; align-items: stretch; gap: 12px; margin-top: 24px; flex-wrap: wrap; }
+  .phase { flex: 1 1 0; min-width: 150px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 16px; }
+  .phase .n { font-family: var(--mono); font-size: 12px; letter-spacing: 1px; color: var(--bronze); }
+  .phase h4 { font-size: 17px; margin: 6px 0 8px; }
+  .phase p { font-size: 14px; line-height: 1.38; color: var(--sub); }
+  .repl { margin-top: 20px; background: #0c1220; border: 1px solid var(--line2); border-radius: 10px;
+    padding: 14px 18px; font-family: var(--mono); font-size: 15px; color: var(--green); line-height: 1.6; }
+  .repl span { color: var(--faint); }
+  .foot { position: fixed; bottom: 16px; left: 0; right: 0; display: flex; justify-content: space-between;
+    align-items: center; padding: 0 24px; font-family: var(--mono); font-size: 12px; color: var(--faint); pointer-events: none; }
+  .bar { position: fixed; top: 0; left: 0; height: 3px; background: var(--bronze); transition: width .28s ease; z-index: 5; }
+  .tag { display: inline-block; font-family: var(--mono); font-size: 12px; letter-spacing: 1px;
+    padding: 2px 8px; border-radius: 5px; border: 1px solid var(--line2); color: var(--sub); margin-left: 10px; vertical-align: middle; }
+  .big-close { font-size: 44px; font-weight: 800; line-height: 1.12; letter-spacing: -.5px; max-width: 30ch; }
+  a { color: var(--cyan); text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="bar" id="bar"></div>
+<div id="deck">
+
+  <!-- 1 · TITLE -->
+  <section class="slide">
+    <div class="kicker">AWS Global Government Hackathon · Counter-UAS</div>
+    <h1>AEGIS&#8209;EDGE</h1>
+    <div class="lede">Governable, resilient, <b style="color:var(--blue)">cooperative</b> counter&#8209;drone defense — decided at the edge.</div>
+    <div class="thesis">Machine&#8209;speed decisions. A human authorizes every kill. The LLM never touches the trigger.</div>
+    <div class="cue"><b>[0:00–0:30]</b> Say the thesis line verbatim, then advance. Don't sell features yet — sell the stance.</div>
+  </section>
+
+  <!-- 2 · PROBLEM + THESIS (Innovation) -->
+  <section class="slide">
+    <div class="kicker">The problem · why we're different</div>
+    <h2>Drones outpace humans. Comms get jammed. “AI that fires” can’t be accredited.</h2>
+    <ul>
+      <li><b>Deterministic gate</b> decides in <b>&lt;1&nbsp;ms</b> — at machine speed, every decision the same every time.</li>
+      <li><b>A human authorizes every kill</b> — two&#8209;person auth, positive&#8209;ID, fratricide check.</li>
+      <li><b>The LLM is OFF the kill chain</b> — it explains <span class="sub">after</span> the gate decides; it never fires.</li>
+      <li class="sub">We don’t compete on a better detector. We compete on a <b>governable, jam&#8209;resilient, cooperative architecture</b>.</li>
+    </ul>
+    <div class="cue"><b>[0:30–1:15]</b> Land the contrarian point: everyone races to put AI *in* the loop — we deliberately kept it out. That’s the innovation and the path to accreditation.</div>
+  </section>
+
+  <!-- 3 · LIVE DEMO ANCHOR -->
+  <section class="slide">
+    <div class="kicker">Live demo</div>
+    <div class="demo-big">LIVE DEMO</div>
+    <ul class="demo-arc">
+      <li><b>1 · Detect → classify → human&#8209;gated defeat</b> — grey UNKNOWN flies in, sensor acquires, classified HOSTILE, you approve the kill.</li>
+      <li><b>2 · Cooperative engagement</b> — Beachhead + Tank Column fuse over Link&#8209;16; ROE picks the cheapest in&#8209;range effector; shoot&#8209;and&#8209;shout.</li>
+      <li><b>3 · Swarm saturation</b> — past ~6 threats, per&#8209;target gating is impossible → pre&#8209;authorized AUTO&#8209;DEFENSE at machine speed.</li>
+      <li><b>4 · DDIL — jam it</b> — radars blind, drones go TRACK LOST, but the edge keeps governing (no cloud).</li>
+      <li><b>5 · Recover</b> — reacquire, human approves, neutralize.</li>
+    </ul>
+    <div class="metrics">
+      <div class="metric"><b>&lt;1 ms</b>gate decision</div>
+      <div class="metric"><b>&lt;0.1%</b>false&#8209;positive vs friendly</div>
+      <div class="metric"><b>45/45</b>tests green</div>
+      <div class="metric"><b>20</b>drone saturation swarm</div>
+    </div>
+    <div class="cue"><b>[1:15–7:30 · the majority of your time]</b> Switch to the sim. Controls: <b>Case 2</b> = DDIL cycle · <b>J</b> = jammer · <b>R</b> = radar down · <b>Space</b> = pause to explain a moment · click a track for the AI threat&#8209;call. End on a clean kill.</div>
+  </section>
+
+  <!-- 4 · ARCHITECTURE -->
+  <section class="slide">
+    <div class="kicker">Architecture &amp; integration <span class="tag">20%</span></div>
+    <h2>Edge decides. Cloud explains &amp; remembers.</h2>
+    <div class="grid2">
+      <div class="card edge">
+        <h3>Edge — Greengrass / Snowball</h3>
+        <p>Deterministic gate + sensor/effector I/O. Runs <b>offline</b>: when the link and cloud are denied, it keeps making shoot / no&#8209;shoot calls locally.</p>
+        <div class="m">the “EDGE&#8209;AUTONOMOUS” banner in the demo = this boundary, live.</div>
+      </div>
+      <div class="card cloud">
+        <h3>Cloud — GovCloud IL5</h3>
+        <p>Bedrock (threat assessment, async &amp; off the kill chain) · S3 Object&#8209;Lock <b>WORM</b> (signed ledger) · KMS · IAM.</p>
+        <div class="m">expensive path is bounded &amp; throttled — never on the trigger.</div>
+      </div>
+    </div>
+    <ul>
+      <li><b>SAPIENT / BSI&nbsp;Flex&nbsp;335</b> — the open C&#8209;UAS interoperability standard. Partners plug sensors &amp; effectors straight in.</li>
+      <li>Pure, I/O&#8209;free deterministic core → the renderer only draws what the core decides. Clean, testable seams.</li>
+    </ul>
+    <div class="cue"><b>[7:30–8:15]</b> One diagram. Point at the boundary: “DDIL resilience is that edge/cloud line made real.” Name SAPIENT for partner integration.</div>
+  </section>
+
+  <!-- 5 · SECURITY & FEASIBILITY -->
+  <section class="slide">
+    <div class="kicker">Security &amp; feasibility <span class="tag">15%</span></div>
+    <h2>A deterministic, auditable kill chain is <span style="color:var(--green)">accreditable</span>.</h2>
+    <ul>
+      <li><b>Tamper&#8209;evident</b> — hash&#8209;chained Ed25519 signed ledger → S3 Object&#8209;Lock WORM (immutable).</li>
+      <li><b>Separation of duties</b> — two&#8209;person authorization · positive&#8209;ID · fratricide / blue&#8209;on&#8209;blue check.</li>
+      <li><b>GovCloud IL5</b>, KMS encryption, IAM least&#8209;privilege · LLM off the kill chain by design.</li>
+      <li><span class="g">Feasibility superpower:</span> a black box that decides to fire is nearly impossible to accredit — a deterministic gate you can audit line&#8209;by&#8209;line is <b>fieldable</b>.</li>
+      <li><span class="bl">Scales &amp; cost&#8209;bounded:</span> gate is &lt;1&nbsp;ms; the LLM is async and throttled to narrate a <b>sample</b> — so cost doesn’t grow with threat volume.</li>
+    </ul>
+    <div class="cue"><b>[8:15–8:50]</b> Lead with “certifiable, therefore fieldable.” The cost line is your optimization story for criterion 5.</div>
+  </section>
+
+  <!-- 6 · FUTURE WORK — EXACT replication path -->
+  <section class="slide">
+    <div class="kicker">Path forward · exactly how we replicate &amp; field it <span class="tag">10%</span></div>
+    <h2>From this PoC to a fielded system</h2>
+    <div class="flow">
+      <div class="phase"><div class="n">PHASE 0 · NOW</div><h4>Governed PoC</h4><p>Cooperative + DDIL loop, 45 tests, Bedrock assessment. Validated on real Kaggle drone telemetry at the edge.</p></div>
+      <div class="phase"><div class="n">PHASE 1</div><h4>Real sensors/effectors</h4><p>Wrap radar / RF / EO&#8209;IR + effectors behind <b>SAPIENT</b>. Deploy the deterministic core as an <b>AWS IoT Greengrass</b> component on a Snowball Edge on&#8209;site. Swap synthetic tracks for live SAPIENT detections.</p></div>
+      <div class="phase"><div class="n">PHASE 2</div><h4>Cloud backplane</h4><p>GovCloud IL5: Bedrock endpoint, S3 Object&#8209;Lock for the signed ledger, KMS/IAM, CloudWatch telemetry.</p></div>
+      <div class="phase"><div class="n">PHASE 3</div><h4>Range pilot + ATO</h4><p>Use the auditable kill chain to drive accreditation; controlled live&#8209;range test with real effectors.</p></div>
+      <div class="phase"><div class="n">PHASE 4</div><h4>Federate &amp; harden</h4><p>Multi&#8209;site Link&#8209;16 federation, PACE comms fallback, bandwidth&#8209;prioritized sharing, confidence&#8209;based shot&#8209;withhold, EW red&#8209;team.</p></div>
+    </div>
+    <div class="repl">
+      <span># replicate the PoC today</span><br>
+      git clone github.com/wasihussain914/wolfberg-cuas-3d &amp;&amp; npm i<br>
+      npm test <span># 45/45 green — the governed loop is the test suite</span><br>
+      npm run dev <span># live sim · bridge/bedrock.mjs = real Bedrock (SigV4, offline fallback)</span><br>
+      <span># integration seam = the SAPIENT adapter; core is pure &amp; deployable as a Greengrass component</span>
+    </div>
+    <div class="cue"><b>[8:50–9:40]</b> This slide answers “how do you actually move forward.” Emphasize SAPIENT as the single integration seam and Greengrass as the deploy target.</div>
+  </section>
+
+  <!-- 7 · CLOSE -->
+  <section class="slide">
+    <div class="kicker">Close</div>
+    <div class="big-close">Machine speed. Human authority. The LLM off the trigger — and it keeps fighting when the comms are gone.</div>
+    <div class="metrics">
+      <div class="metric"><b>&lt;1 ms</b>deterministic gate</div>
+      <div class="metric"><b>&lt;0.1%</b>FP vs friendly</div>
+      <div class="metric"><b>45/45</b>tests</div>
+      <div class="metric"><b>DDIL</b>edge&#8209;autonomous</div>
+    </div>
+    <div class="lede">Repo: <a>github.com/wasihussain914/wolfberg-cuas-3d</a> &nbsp;·&nbsp; Live demo running now.</div>
+    <div class="cue"><b>[9:40–10:00]</b> Restate the one&#8209;liner, name the ask (pilot partner / next step), thank them. Leave the sim on screen.</div>
+  </section>
+
+</div>
+
+<div class="foot"><span id="pos">1 / 7</span><span>← → or Space to navigate · F fullscreen</span></div>
+
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const bar = document.getElementById('bar'), pos = document.getElementById('pos');
+  let i = 0;
+  function show(n) {
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, k) => s.classList.toggle('on', k === i));
+    bar.style.width = ((i + 1) / slides.length * 100) + '%';
+    pos.textContent = (i + 1) + ' / ' + slides.length;
+  }
+  addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); show(i + 1); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); show(i - 1); }
+    else if (e.key === 'Home') show(0);
+    else if (e.key === 'End') show(slides.length - 1);
+    else if (e.key.toLowerCase() === 'f') { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); }
+  });
+  addEventListener('click', (e) => { if (e.clientX < innerWidth * 0.25) show(i - 1); else show(i + 1); });
+  show(0);
+</script>
+</body>
+</html>
