@@ -35,12 +35,15 @@ Deck: `/pitch.html` · Diagram: `/architecture.html` · Sim: `/` (the live tunne
 **Beat 3 — Swarm saturation → pre-authorized auto-defense**
 > "Now a saturating swarm — twenty drones. Past about six simultaneous threats, no human can gate each one. So the operator pre-authorizes a **bounded auto-defense envelope**, and the deterministic gate engages at machine speed — and every single action is still hash-chained into the audit ledger."
 
-**Beat 4 — DDIL: jam it** *(press J)*
-> "Here's the contested piece. I switch on the enemy jammer. Watch — our radars go blind, the drones **drop off the picture**, 'threats untracked.' We literally cannot see or shoot.
+**Beat 4 — DDIL: jam it** *(press R for radar-down, or J for the jammer)*
+> "Here's the contested piece. The enemy jams our sensors. Watch — the radars go blind, and the threats — 0427, 0318 — **drop off the picture: TRACK LOST.** We literally cannot see or shoot them.
 > But look at this banner: **COMMS DENIED → EDGE-AUTONOMOUS.** The decision engine keeps running locally on the edge — no cloud, no internet — it just has nothing to shoot until sensing returns."
 
-**Beat 5 — Recover**  *(clear the jam)*
-> "The moment jamming lifts, we **reacquire**, and I authorize the kill. That's resilience — we degrade gracefully and stay in the fight."
+**Beat 5 — Recover (the money shot)**  *(release R / clear the jam)*
+> "And the moment sensing comes back — watch — the system **reacquires the threats it couldn't touch and defeats them automatically.** *(the drones burst)* That's resilience: jamming didn't beat us, it just delayed us. We degrade gracefully and stay in the fight."
+
+**Land the point:**
+> "That's the whole thesis in ten seconds — blind us, and the edge holds the line and finishes the job the instant it can see again."
 
 **Metrics — say these out loud during the demo:**
 > "Every decision is **under a millisecond**. Under **0.1% false-positive** against friendly aircraft — by construction: anything squawking ADS-B or Remote ID is classified cooperative and hard-blocked. And this is tested — **45 automated tests, all green.** This is a running governed loop, not a mockup."
