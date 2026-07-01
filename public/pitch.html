@@ -69,6 +69,9 @@
     padding: 2px 8px; border-radius: 5px; border: 1px solid var(--line2); color: var(--sub); margin-left: 10px; vertical-align: middle; }
   .big-close { font-size: 44px; font-weight: 800; line-height: 1.12; letter-spacing: -.5px; max-width: 30ch; }
   a { color: var(--cyan); text-decoration: none; }
+  .slide.diagram { padding: 4vh 3vw 3vh; }
+  .diagram-frame { flex: 1; width: 100%; border: 1px solid var(--line2); border-radius: 10px;
+    background: #fff; margin: 12px 0 10px; box-shadow: 0 8px 30px rgba(0,0,0,.35); }
 </style>
 </head>
 <body>
@@ -139,6 +142,13 @@
       <li>Pure, I/O&#8209;free deterministic core → the renderer only draws what the core decides. Clean, testable seams.</li>
     </ul>
     <div class="cue"><b>[7:30–8:15]</b> Show the official AWS diagram (<b>/aws-diagram.html</b>). Point at the boundary: “DDIL resilience is that edge/cloud line made real” — Kinesis → Greengrass gate → Bedrock, keys never on device (IoT TES). Name SAPIENT for partner integration.</div>
+  </section>
+
+  <!-- 4a · AWS DIAGRAM (embedded) -->
+  <section class="slide diagram">
+    <div class="kicker">AWS reference architecture <span class="tag">20%</span></div>
+    <iframe class="diagram-frame" src="aws-diagram.html" title="Aegis-Edge AWS architecture"></iframe>
+    <div class="cue"><b>[part of 7:30–8:15]</b> Trace the flow: sensors → <b>Kinesis</b> → <b>Greengrass gate</b> (edge, offline in DDIL) → human gate → effector; ledger → <b>S3 Object&#8209;Lock (WORM)</b>; <b>Bedrock</b> explains async. “Keys never touch the device — IoT Token Exchange.” Edge decides, cloud explains &amp; remembers.</div>
   </section>
 
   <!-- 4b · PARTNER STACK -->
