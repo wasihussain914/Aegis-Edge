@@ -1,1 +1,2 @@
 2026-06-30 21:54 — seeded overnight loop: gate micro-benchmark (~0.58µs measured) + README perf section + npm run bench. Items 2-4 (README rewrite, extra tests, DEMO-RUNBOOK) pending.
+2026-07-01 06:19 — items 2-4 completed by hand (loop was session-only, didn't fire): README rewritten for current build, +6 gate/comms edge-case tests (56 total), DEMO-RUNBOOK.md added. Merged collab + benchmark into main.
