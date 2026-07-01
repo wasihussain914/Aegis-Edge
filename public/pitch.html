@@ -121,6 +121,20 @@
     <div class="cue"><b>[1:15–7:30 · the majority of your time]</b> Switch to the sim. Controls: <b>R</b> = radar down · <b>J</b> = jammer · <b>Case 2</b> = auto DDIL cycle · <b>Space</b> = pause to explain · click a track for the AI threat&#8209;call, then <b>💥 Destroy</b>. <b>End on beat 5</b>: press R (threats go TRACK LOST) → release → they reacquire and the system auto-defeats them. That's your closer.</div>
   </section>
 
+  <!-- 3b · DATA PROVENANCE -->
+  <section class="slide">
+    <div class="kicker">The data · where it comes from <span class="tag">30%</span></div>
+    <h2>Data the military <span style="color:var(--green)">already has</span>.</h2>
+    <ul>
+      <li><b>Sensors you already field</b> — radar (kinematics), RF / SIGINT (emitter DF), EO/IR (thermal + visual). We fuse them with a <b>real IMM tracker</b>. <span class="sub">No new sensors to buy.</span></li>
+      <li><b>Signals you already receive</b> — ADS-B / Remote ID / IFF for friend-or-foe, and <b>Link-16</b> for the shared air picture. We ride the datalinks you already operate.</li>
+      <li><b>One standard interface — SAPIENT / BSI&nbsp;Flex&nbsp;335</b> — the open C-UAS standard your sensors and effectors <b>already speak</b>. Plug in; don't rebuild.</li>
+      <li><b>Proven on real measurement data</b> — the tracker runs over <b>real drone-trajectory telemetry</b>, not scripted paths. <span class="sub">(The demo scenario is synthetic and labeled; the tracker and the data are real.)</span></li>
+    </ul>
+    <div class="thesis" style="margin-top:20px;font-size:22px;">Zero new data collection. We're a software layer on the air picture you already own.</div>
+    <div class="cue"><b>[~40s, right after the demo]</b> This is the credibility slide. Say: “Everything you just saw runs on data the military already collects — radar, RF, EO/IR, transponders, Link-16 — ingested through SAPIENT, the standard your sensors already speak. We add no new sensors and no new data pipeline; we govern the picture you already have.” Keep the honesty line: real tracker + real telemetry, synthetic *scenario*.</div>
+  </section>
+
   <!-- 4 · ARCHITECTURE -->
   <section class="slide">
     <div class="kicker">Architecture &amp; integration <span class="tag">20%</span></div>
