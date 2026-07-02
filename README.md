@@ -2,6 +2,12 @@
 
 Wolfberg / Per Aspera entry for the **AWS Global Government Hackathon** (AWS Summit DC, June 29 – July 1, 2026).
 
+## 🎥 Demo
+
+<video src="https://github.com/wasihussain914/Aegis-Edge/raw/main/media/aegis-edge-demo.mp4" controls muted width="860"></video>
+
+▶ **[Watch the demo](https://github.com/wasihussain914/Aegis-Edge/blob/main/media/aegis-edge-demo.mp4)** &nbsp;·&nbsp; 🌐 **[Live sim + deck](https://wasihussain914.github.io/Aegis-Edge/)** &nbsp;·&nbsp; 📊 **[Pitch deck](https://wasihussain914.github.io/Aegis-Edge/pitch.html)**
+
 ## What this is
 
 **Aegis-Edge** — a governable, resilient, **cooperative** counter-UAS (counter-drone) system, decided
