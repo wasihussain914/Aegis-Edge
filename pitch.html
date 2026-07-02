@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Aegis-Edge · Pitch</title>
+<style>
+  :root {
+    --bg: #0a0e14; --panel: #101725; --line: #1e2a3d; --line2: #2b3a52;
+    --ink: #e7eefb; --sub: #9fb2d0; --faint: #6f87ad;
+    --bronze: #ffb454; --blue: #6fa8ff; --green: #5dd6a0; --red: #ff5a4d; --cyan: #9fe8ff;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--bg); color: var(--ink); font-family: var(--sans); overflow: hidden; }
+  #deck { height: 100vh; width: 100vw; position: relative; }
+  .slide {
+    position: absolute; inset: 0; display: none; flex-direction: column;
+    padding: 6vh 7vw; opacity: 0; transition: opacity .28s ease;
+    background:
+      radial-gradient(1200px 700px at 78% -10%, rgba(111,168,255,.10), transparent 60%),
+      radial-gradient(900px 600px at 0% 110%, rgba(255,180,84,.08), transparent 55%);
+  }
+  .slide.on { display: flex; opacity: 1; }
+  .kicker { font-family: var(--mono); font-size: 13px; letter-spacing: 3px; text-transform: uppercase;
+    color: var(--bronze); margin-bottom: 18px; }
+  h1 { font-size: 62px; line-height: 1.02; letter-spacing: -1px; font-weight: 800; }
+  h2 { font-size: 40px; line-height: 1.08; letter-spacing: -.5px; font-weight: 750; margin-bottom: 6px; }
+  .lede { font-size: 22px; color: var(--sub); line-height: 1.4; margin-top: 16px; max-width: 60ch; }
+  .thesis { font-size: 26px; line-height: 1.3; margin-top: 22px; color: var(--ink); max-width: 46ch;
+    border-left: 3px solid var(--bronze); padding-left: 18px; }
+  ul { list-style: none; margin-top: 22px; display: flex; flex-direction: column; gap: 14px; }
+  li { font-size: 21px; line-height: 1.32; color: var(--ink); padding-left: 30px; position: relative; max-width: 66ch; }
+  li::before { content: "▸"; color: var(--bronze); position: absolute; left: 4px; top: 1px; }
+  li b { color: var(--cyan); font-weight: 700; }
+  li .g { color: var(--green); } li .r { color: var(--red); } li .bl { color: var(--blue); }
+  .sub { color: var(--sub); font-size: 18px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 22px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 20px 22px; }
+  .card h3 { font-family: var(--mono); font-size: 13px; letter-spacing: 2px; text-transform: uppercase; color: var(--bronze); margin-bottom: 10px; }
+  .card.edge h3 { color: var(--green); } .card.cloud h3 { color: var(--blue); }
+  .card p { font-size: 17px; line-height: 1.4; color: var(--ink); }
+  .card .m { font-family: var(--mono); font-size: 14px; color: var(--sub); margin-top: 8px; }
+  .metrics { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 26px; }
+  .metric { background: var(--panel); border: 1px solid var(--line2); border-radius: 10px; padding: 12px 16px;
+    font-family: var(--mono); font-size: 15px; }
+  .metric b { color: var(--bronze); font-size: 20px; display: block; }
+  .demo-big { font-size: 96px; font-weight: 850; letter-spacing: -2px; color: var(--bronze);
+    text-shadow: 0 0 40px rgba(255,180,84,.25); }
+  .demo-arc { margin-top: 20px; }
+  .demo-arc li { font-size: 23px; }
+  .demo-arc li b { color: var(--bronze); }
+  .cue { margin-top: auto; font-family: var(--mono); font-size: 13px; color: var(--faint);
+    border-top: 1px solid var(--line); padding-top: 12px; line-height: 1.5; max-width: 92ch; }
+  .cue b { color: var(--sub); }
+  .flow { display: flex; align-items: stretch; gap: 12px; margin-top: 24px; flex-wrap: wrap; }
+  .phase { flex: 1 1 0; min-width: 150px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 16px; }
+  .phase .n { font-family: var(--mono); font-size: 12px; letter-spacing: 1px; color: var(--bronze); }
+  .phase h4 { font-size: 17px; margin: 6px 0 8px; }
+  .phase p { font-size: 14px; line-height: 1.38; color: var(--sub); }
+  .repl { margin-top: 20px; background: #0c1220; border: 1px solid var(--line2); border-radius: 10px;
+    padding: 14px 18px; font-family: var(--mono); font-size: 15px; color: var(--green); line-height: 1.6; }
+  .repl span { color: var(--faint); }
+  .foot { position: fixed; bottom: 16px; left: 0; right: 0; display: flex; justify-content: space-between;
+    align-items: center; padding: 0 24px; font-family: var(--mono); font-size: 12px; color: var(--faint); pointer-events: none; }
+  .bar { position: fixed; top: 0; left: 0; height: 3px; background: var(--bronze); transition: width .28s ease; z-index: 5; }
+  .tag { display: inline-block; font-family: var(--mono); font-size: 12px; letter-spacing: 1px;
+    padding: 2px 8px; border-radius: 5px; border: 1px solid var(--line2); color: var(--sub); margin-left: 10px; vertical-align: middle; }
+  .big-close { font-size: 44px; font-weight: 800; line-height: 1.12; letter-spacing: -.5px; max-width: 30ch; }
+  a { color: var(--cyan); text-decoration: none; }
+  .slide.diagram { padding: 4vh 3vw 3vh; }
+  .diagram-frame { flex: 1; width: 100%; border: 1px solid var(--line2); border-radius: 10px;
+    background: #fff; margin: 12px 0 10px; box-shadow: 0 8px 30px rgba(0,0,0,.35); }
+  .cue { display: none; }   /* presenter notes hidden on the rendered slides (see PITCH-SCRIPT.md) */
+  .scn { display: flex; gap: 10px; margin-top: 18px; }
+  .scn .pill { font-family: var(--mono); font-size: 12px; letter-spacing: 1px; padding: 6px 12px;
+    border-radius: 999px; border: 1px solid var(--line2); color: var(--sub); }
+  .scn .pill.on { border-color: var(--bronze); color: var(--bronze); background: rgba(255,180,84,.08); }
+  .report { margin-top: 14px; background: #0b1220; border: 1px solid var(--line2); border-radius: 10px;
+    padding: 18px 22px; font-family: var(--mono); font-size: 13px; line-height: 1.6; color: #bcd0ea;
+    box-shadow: 0 10px 34px rgba(0,0,0,.35); max-height: 60vh; overflow: auto; }
+  .report .h { color: var(--bronze); font-weight: 700; }
+  .report .g { color: var(--green); } .report .r { color: var(--red); } .report .c { color: var(--cyan); }
+  .report .k { color: var(--faint); }
+</style>
+</head>
+<body>
+<div class="bar" id="bar"></div>
+<div id="deck">
+
+  <!-- 1 · TITLE -->
+  <section class="slide">
+    <div class="kicker">AWS Global Government Hackathon · Counter-UAS</div>
+    <h1>AEGIS&#8209;EDGE</h1>
+    <div class="lede">Governable, resilient, <b style="color:var(--blue)">cooperative</b> counter&#8209;drone defense — decided at the edge.</div>
+    <div class="thesis">Machine&#8209;speed decisions. A human authorizes every kill. The LLM never touches the trigger.</div>
+    <div class="lede" style="font-size:16px;margin-top:22px;color:var(--faint);">Syed “Wasi” Hussain · Team Wolfberg Per Aspera</div>
+    <div class="cue"><b>[0:00–0:30]</b> Say the thesis line verbatim, then advance. Don't sell features yet — sell the stance.</div>
+  </section>
+
+  <!-- 2 · PROBLEM + THESIS (Innovation) -->
+  <section class="slide">
+    <div class="kicker">The problem · why we're different</div>
+    <h2>Drones outpace humans. Two units can’t share a picture across a jammed link. And “AI that fires” can’t be accredited.</h2>
+    <ul>
+      <li><b>The pain point nobody solves — linking two units under fire.</b> A beachhead and a convoy each see part of the sky, but fusing their pictures across a contested, jammed tactical link is where cooperative defense breaks down. <span class="sub">Today that hand-off is manual, slow, and dies when comms degrade.</span></li>
+      <li><b>We fix the link.</b> Two units fuse into <b>one air picture over Link-16</b>; one unit engages what the <span class="sub">other</span> sees; and when the link is jammed the system <b>degrades gracefully</b> — each unit self-protects, then re-fuses the instant comms return.</li>
+      <li><b>Deterministic gate</b> decides in <b>&lt;1&nbsp;ms</b>, a <b>human authorizes every kill</b> (two-person, positive-ID, fratricide), and the <b>LLM stays OFF the kill chain</b> — it explains, it never fires.</li>
+      <li class="sub">We don’t compete on a better detector. We compete on a <b>governable, jam-resilient, cooperative architecture</b> — the linking layer between units.</li>
+    </ul>
+    <div class="cue"><b>[0:30–1:15]</b> Lead with the linking pain: “The military’s real problem isn’t detecting one drone — it’s getting two units, two convoys, to share one air picture across a jammed link and act on it together. That hand-off is manual and dies under EW. We make it automatic, and jam-resilient.” Then the contrarian close: everyone puts AI *in* the loop — we kept it out, which is the path to accreditation.</div>
+  </section>
+
+  <!-- 3 · LIVE DEMO ANCHOR -->
+  <section class="slide">
+    <div class="kicker">Live demo</div>
+    <div class="demo-big">LIVE DEMO</div>
+    <ul class="demo-arc">
+      <li><b>1 · Detect → classify → human&#8209;gated defeat</b> — grey UNKNOWN flies in, sensor acquires, classified HOSTILE, you approve the kill.</li>
+      <li><b>2 · Cooperative engagement</b> — Beachhead + Tank Column fuse over Link&#8209;16; ROE picks the cheapest in&#8209;range effector; shoot&#8209;and&#8209;shout.</li>
+      <li><b>3 · Swarm saturation</b> — past ~6 threats, per&#8209;target gating is impossible → pre&#8209;authorized AUTO&#8209;DEFENSE at machine speed.</li>
+      <li><b>4 · DDIL — jam it</b> — radars go blind, the threats drop to <b>TRACK LOST</b>, we can't see or shoot — but the edge keeps governing (no cloud).</li>
+      <li><b>5 · Recover — the money shot</b> — the instant sensing returns, the system <b>reacquires the threats it couldn't touch and defeats them</b>. Degrade gracefully, stay in the fight.</li>
+    </ul>
+    <div class="metrics">
+      <div class="metric"><b>&lt;1 ms</b>gate decision</div>
+      <div class="metric"><b>&lt;0.1%</b>false&#8209;positive vs friendly</div>
+      <div class="metric"><b>45/45</b>tests green</div>
+      <div class="metric"><b>20</b>drone saturation swarm</div>
+    </div>
+    <div class="cue"><b>[1:15–7:30 · the majority of your time]</b> Switch to the sim. Controls: <b>R</b> = radar down · <b>J</b> = jammer · <b>Case 2</b> = auto DDIL cycle · <b>Space</b> = pause to explain · click a track for the AI threat&#8209;call, then <b>💥 Destroy</b>. <b>End on beat 5</b>: press R (threats go TRACK LOST) → release → they reacquire and the system auto-defeats them. That's your closer.</div>
+  </section>
+
+  <!-- 3s1 · SCENARIO 1 — MANUAL -->
+  <section class="slide">
+    <div class="kicker">Scenario 1 · normal ingress — Manual mode</div>
+    <h2>Drones inbound. A human authorizes every shot.</h2>
+    <ul>
+      <li>Contacts ingress from the edge — grey <b>UNKNOWN</b> → sensors acquire → classified <b class="" style="color:var(--red)">HOSTILE</b>.</li>
+      <li>Mode = <b>Manual</b>: the gate names the cheapest in-range effector but <b>pauses on a two-person human gate</b> — nothing fires yet.</li>
+      <li>The operator reads the plain-English threat call, <b>approves</b>, and the threat is defeated — every step written to the audit ledger.</li>
+      <li class="sub">Maximum control, deliberate tempo. Nothing engages without a human.</li>
+    </ul>
+    <div class="scn"><span class="pill on">Manual</span><span class="pill">Combined</span><span class="pill">Autonomous</span></div>
+  </section>
+
+  <!-- 3s2 · SCENARIO 2 — AUTONOMOUS -->
+  <section class="slide">
+    <div class="kicker">Scenario 2 · saturation — Autonomous mode</div>
+    <h2>Too many, too fast — machine-speed defense inside a bounded envelope.</h2>
+    <ul>
+      <li>A swarm saturates the airspace. Past ~6 simultaneous threats, per-target human gating is physically impossible.</li>
+      <li>The operator pre-authorizes a <b>bounded AUTO-DEFENSE envelope</b> — two-person to arm, ABORT always live.</li>
+      <li>The deterministic gate <b>engages at machine speed</b> (~0.58 µs/decision); every action is still hash-chained into the ledger.</li>
+      <li class="sub">Machine tempo, human-bounded — and the LLM still never touches the trigger.</li>
+    </ul>
+    <div class="scn"><span class="pill">Manual</span><span class="pill">Combined</span><span class="pill on">Autonomous</span></div>
+  </section>
+
+  <!-- 3s3 · SCENARIO 3 — DDIL -->
+  <section class="slide">
+    <div class="kicker">Scenario 3 · contested — DDIL / jammed</div>
+    <h2>What happens when we get jammed?</h2>
+    <ul>
+      <li>Enemy EW blackout: the radars go blind, threats drop to <b style="color:var(--faint)">⚠ TRACK LOST</b> — we can't see or shoot.</li>
+      <li><b style="color:var(--green)">COMMS DENIED → EDGE-AUTONOMOUS</b>: the gate keeps governing locally — no cloud, no link.</li>
+      <li>The instant sensing returns, the system <b>reacquires and defeats</b> the threats it couldn't touch.</li>
+      <li class="sub">Cross-unit pictures degrade gracefully → self-protect → re-fuse. Jamming delays us; it doesn't beat us.</li>
+    </ul>
+    <div class="scn"><span class="pill">Case 1 · clear</span><span class="pill on">Case 2 · DDIL / jammed</span></div>
+  </section>
+
+  <!-- 3s4 · BEDROCK REPORT -->
+  <section class="slide">
+    <div class="kicker">Amazon Bedrock — AI-generated assessment report</div>
+    <h2>Bedrock turns the collected data into a plain-English report.</h2>
+    <div class="report">
+<span class="h">AEGIS-EDGE · THREAT ASSESSMENT REPORT</span> <span class="k">(sample output)</span><br>
+<span class="k">AO: Joint Base Cascade — North Gate · WCS: TIGHT · 2026-07-01 08:14Z · engine: Bedrock (Claude)</span><br><br>
+<span class="h">SUMMARY</span> — 4 tracks held · 2 classified HOSTILE · <span class="g">2 defeated</span> · <span class="g">0 fratricide</span> · <span class="g">0 friendly engaged</span>.<br><br>
+<span class="r">HOSTILE-1 (0427)</span> — quad thermal + commercial-UAS C2, inside the no-fly. Classified <span class="r">HIGH</span>.<br>
+&nbsp;&nbsp;ROE: Tank Column · SLAMRAAM (cheapest in-range). <span class="c">Operator-approved.</span> DEFEATED T+41s.<br>
+<span class="r">HOSTILE-2 (0318)</span> — low RCS, <b>fiber-guided (no RF emitter)</b>. Classified <span class="r">HIGH</span>.<br>
+&nbsp;&nbsp;RF-defeat N/A → escalated to SHORAD. <span class="c">Operator-approved.</span> DEFEATED T+58s.<br>
+<span class="g">FRIEND-1 (0192)</span> — valid ADS-B / Remote ID → <span class="g">COOPERATIVE</span>. Hard-blocked; never engaged.<br><br>
+<span class="h">COMMS</span> — Case 2 (DDIL): 1 jamming event (6s). Edge-autonomous; all tracks reacquired on recovery.<br>
+<span class="h">LEDGER</span> — 27 entries · Ed25519 hash-chain <span class="g">VERIFIED</span> · S3 Object-Lock (WORM).<br><br>
+<span class="h">ASSESSMENT</span> — Nominal defense. Both hostiles neutralized with the cheapest effective effectors;<br>
+zero risk to cooperative traffic. Recommend continued TIGHT posture; pre-authorize the AUTO envelope<br>
+if swarm density rises. Model ran <b>off the kill chain</b> — it summarizes; it never decided a shot.
+    </div>
+    <div class="sub" style="margin-top:10px;font-size:13px;">Generated by Amazon Bedrock from the tracks + audit ledger, <b>after</b> the gate decided. Illustrative sample.</div>
+  </section>
+
+  <!-- 3b · DATA PROVENANCE -->
+  <section class="slide">
+    <div class="kicker">The data · where it comes from <span class="tag">30%</span></div>
+    <h2>Data the military <span style="color:var(--green)">already has</span>.</h2>
+    <ul>
+      <li><b>RF detection</b> → <b>DroneRF</b> — real small-UAS RF signatures (drone vs background).</li>
+      <li><b>Thermal / EO-IR</b> → <b>HIT-UAV</b> — real high-altitude infrared UAV imagery.</li>
+      <li><b>Cooperative discrimination (friend-or-foe)</b> → <b>ADS-B / adsb.lol</b> + <b>OpenSky</b> state vectors — real friendly aircraft, held cooperative → the <b>&lt;0.1% false-positive</b> guarantee.</li>
+      <li><b>Cross-unit linking</b> → <b>MITRE Cursor-on-Target</b> — the DoD standard for sharing tracks between units (our Link-16 fusion layer).</li>
+      <li><b>Real threat data</b> → <b>Ukraine UAV-strike dataset</b> — real launched / shot-down drones ground the threat side.</li>
+    </ul>
+    <div class="sub" style="margin-top:10px;font-size:14px;">All fused by a <b>real IMM tracker</b> · ingested via <b>SAPIENT / BSI&nbsp;Flex&nbsp;335</b> · <b>no new sensors</b>.</div>
+    <div class="thesis" style="margin-top:16px;font-size:22px;">Zero new data collection. We're a software layer on the air picture you already own.</div>
+    <div class="cue"><b>[~40s, right after the demo]</b> Credibility slide. Say: “We fuse four real sensor modalities the military already collects — RF from DroneRF, thermal from HIT-UAV, and cooperative ADS-B tracks from adsb.lol and OpenSky — discriminate friend from foe, share the picture between units with a Cursor-on-Target-style link, and validate against real Ukraine UAV-strike data. No new sensors, no new pipeline.” Honesty line: real modalities/data, synthetic *scenario*.</div>
+  </section>
+
+  <!-- 4 · ARCHITECTURE -->
+  <section class="slide">
+    <div class="kicker">Architecture &amp; integration <span class="tag">20%</span></div>
+    <h2>Edge decides. Cloud explains &amp; remembers.</h2>
+    <div class="grid2">
+      <div class="card edge">
+        <h3>Edge — Greengrass / Snowball</h3>
+        <p>Deterministic gate + sensor/effector I/O. Runs <b>offline</b>: when the link and cloud are denied, it keeps making shoot / no&#8209;shoot calls locally.</p>
+        <div class="m">the “EDGE&#8209;AUTONOMOUS” banner in the demo = this boundary, live.</div>
+      </div>
+      <div class="card cloud">
+        <h3>Cloud — GovCloud IL5</h3>
+        <p>Bedrock <b>generates the assessment report</b> from the collected data (async &amp; off the kill chain) · S3 Object&#8209;Lock <b>WORM</b> (signed ledger) · KMS · IAM.</p>
+        <div class="m">expensive path is bounded &amp; throttled — never on the trigger.</div>
+      </div>
+    </div>
+    <ul>
+      <li><b>SAPIENT / BSI&nbsp;Flex&nbsp;335</b> — the open C&#8209;UAS interoperability standard. Partners plug sensors &amp; effectors straight in.</li>
+      <li>Pure, I/O&#8209;free deterministic core → the renderer only draws what the core decides. Clean, testable seams.</li>
+    </ul>
+    <div class="cue"><b>[7:30–8:15]</b> Show the official AWS diagram (<b>/aws-diagram.html</b>). Point at the boundary: “DDIL resilience is that edge/cloud line made real” — Kinesis → Greengrass gate → Bedrock, keys never on device (IoT TES). Name SAPIENT for partner integration.</div>
+  </section>
+
+  <!-- 4a · AWS DIAGRAM (embedded) -->
+  <section class="slide diagram">
+    <div class="kicker">AWS reference architecture <span class="tag">20%</span></div>
+    <iframe class="diagram-frame" src="aws-diagram.html" title="Aegis-Edge AWS architecture"></iframe>
+    <div class="cue"><b>[part of 7:30–8:15]</b> Trace the flow: sensors → <b>Kinesis</b> → <b>Greengrass gate</b> (edge, offline in DDIL) → human gate → effector; ledger → <b>S3 Object&#8209;Lock (WORM)</b>; <b>Bedrock</b> explains async. “Keys never touch the device — IoT Token Exchange.” Edge decides, cloud explains &amp; remembers.</div>
+  </section>
+
+  <!-- 4b · PARTNER STACK -->
+  <section class="slide">
+    <div class="kicker">Partner stack · built on the sponsors</div>
+    <h2>An enterprise&#8209;grade platform, not a one&#8209;off.</h2>
+    <div class="grid2" style="grid-template-columns:1fr 1fr; gap:12px 26px; margin-top:18px;">
+      <ul style="margin-top:0; gap:11px;">
+        <li><b>AWS</b> — Greengrass + Snowball (edge), Bedrock, S3 WORM, KMS, IAM on GovCloud IL5. <span class="g">The backbone.</span></li>
+        <li><b>Anthropic · Claude</b> — the threat&#8209;assessment LLM via Bedrock. <span class="g">Live in the PoC</span> — and deliberately <b>off the kill chain</b>.</li>
+        <li><b>Okta</b> — operator identity + MFA + RBAC; <b>enforces our two&#8209;person authorization</b> on every engagement.</li>
+        <li><b>Elastic</b> — searchable track history + audit ledger; vector context for assessments.</li>
+        <li><b>Datadog</b> — observability: the &lt;1ms gate SLO, Bedrock cost/latency, ledger&#8209;write health.</li>
+      </ul>
+      <ul style="margin-top:0; gap:11px;">
+        <li><b>Rapid7</b> — secures the defender itself: MDR + exposure management on the C&#8209;UAS platform.</li>
+        <li><b>Red Hat</b> — hardened edge OS (RHEL / Device Edge), OpenShift + Ansible for the fleet.</li>
+        <li><b>Spectro Cloud</b> — Palette manages the edge Kubernetes fleet across sites at scale.</li>
+        <li><b>GitLab</b> — CI/CD + DevSecOps: runs the 45 tests, signs &amp; ships the edge components.</li>
+        <li><b>IBM</b> — watsonx.governance for model risk + hybrid&#8209;cloud on mission&#8209;critical gov workloads.</li>
+      </ul>
+    </div>
+    <div class="cue"><b>[~30s, during the architecture beat]</b> Flash this on the diagram. Say plainly: “Claude via Bedrock is live today; the rest are the enterprise stack we integrate — identity via Okta enforces our two&#8209;person rule, Datadog watches the gate SLO, GitLab ships the edge.” Don’t overclaim — say “integrate,” not “built with.”</div>
+  </section>
+
+  <!-- 5 · SECURITY & FEASIBILITY -->
+  <section class="slide">
+    <div class="kicker">Security &amp; feasibility <span class="tag">15%</span></div>
+    <h2>A deterministic, auditable kill chain is <span style="color:var(--green)">accreditable</span>.</h2>
+    <ul>
+      <li><b>Tamper&#8209;evident</b> — hash&#8209;chained Ed25519 signed ledger → S3 Object&#8209;Lock WORM (immutable).</li>
+      <li><b>Separation of duties</b> — two&#8209;person authorization · positive&#8209;ID · fratricide / blue&#8209;on&#8209;blue check.</li>
+      <li><b>GovCloud IL5</b>, KMS encryption, IAM least&#8209;privilege · LLM off the kill chain by design.</li>
+      <li><span class="g">Feasibility superpower:</span> a black box that decides to fire is nearly impossible to accredit — a deterministic gate you can audit line&#8209;by&#8209;line is <b>fieldable</b>.</li>
+      <li><span class="bl">Scales &amp; cost&#8209;bounded:</span> gate is &lt;1&nbsp;ms; the LLM is async and throttled to narrate a <b>sample</b> — so cost doesn’t grow with threat volume.</li>
+    </ul>
+    <div class="cue"><b>[8:15–8:50]</b> Lead with “certifiable, therefore fieldable.” The cost line is your optimization story for criterion 5.</div>
+  </section>
+
+  <!-- 6 · FUTURE WORK — EXACT replication path -->
+  <section class="slide">
+    <div class="kicker">Path forward · exactly how we replicate &amp; field it <span class="tag">10%</span></div>
+    <h2>From this PoC to a fielded system</h2>
+    <div class="flow">
+      <div class="phase"><div class="n">PHASE 0 · NOW</div><h4>Governed PoC</h4><p>Cooperative + DDIL loop, 45 tests, Bedrock assessment. Validated on real Kaggle drone telemetry at the edge.</p></div>
+      <div class="phase"><div class="n">PHASE 1</div><h4>Real sensors/effectors</h4><p>Wrap radar / RF / EO&#8209;IR + effectors behind <b>SAPIENT</b>. Deploy the deterministic core as an <b>AWS IoT Greengrass</b> component on a Snowball Edge on&#8209;site. Swap synthetic tracks for live SAPIENT detections.</p></div>
+      <div class="phase"><div class="n">PHASE 2</div><h4>Cloud backplane</h4><p>GovCloud IL5: Bedrock endpoint, S3 Object&#8209;Lock for the signed ledger, KMS/IAM, CloudWatch telemetry.</p></div>
+      <div class="phase"><div class="n">PHASE 3</div><h4>Range pilot + ATO</h4><p>Use the auditable kill chain to drive accreditation; controlled live&#8209;range test with real effectors.</p></div>
+      <div class="phase"><div class="n">PHASE 4</div><h4>Federate &amp; harden</h4><p>Multi&#8209;site Link&#8209;16 federation, PACE comms fallback, bandwidth&#8209;prioritized sharing, confidence&#8209;based shot&#8209;withhold, EW red&#8209;team.</p></div>
+    </div>
+    <div class="repl">
+      <span># replicate the PoC today</span><br>
+      git clone github.com/wasihussain914/Aegis-Edge &amp;&amp; npm i<br>
+      npm test <span># 45/45 green — the governed loop is the test suite</span><br>
+      npm run dev <span># live sim · bridge/bedrock.mjs = real Bedrock (SigV4, offline fallback)</span><br>
+      <span># integration seam = the SAPIENT adapter; core is pure &amp; deployable as a Greengrass component</span>
+    </div>
+    <div class="cue"><b>[8:50–9:40]</b> This slide answers “how do you actually move forward.” Emphasize SAPIENT as the single integration seam and Greengrass as the deploy target.</div>
+  </section>
+
+  <!-- 6b · COST & OPTIMIZATION -->
+  <section class="slide">
+    <div class="kicker">Cost &amp; optimization <span class="tag">10%</span></div>
+    <h2>The money is in sensors &amp; effectors — we're the cheap keystone.</h2>
+    <ul>
+      <li><b>Per-site capex</b> — Light (mobile) ~$150–450k · Standard (fixed) ~$0.5–1.5M · Heavy (base) ~$1.5–5M+. Radar / RF / EO-IR + effector dominate; <b>our software is single-digit %</b> of that.</li>
+      <li><b>Cloud is tiny and FLAT</b> — Bedrock is off the hot path &amp; throttled (~$15–75/mo/site) and <b>doesn't grow with drone count</b>; the deterministic gate is near-free (<b>0.58 µs</b>/decision, measured). Cloud ≈ <b>1–5% of TCO</b>.</li>
+      <li><b>Deploy into what exists</b> — AWS <b>Modular Data Center</b> (ruggedized, DDIL-built) under the <b>$9B JWCC</b> vehicle. No infrastructure to build.</li>
+      <li><b>Capital-light</b> — we sell software + integration per site; the customer/partner owns the hardware. At 100 sites our layer is <b>low single-digit % of TCO</b>.</li>
+    </ul>
+    <div class="metrics">
+      <div class="metric"><b>~$15–75</b>/mo cloud · per site</div>
+      <div class="metric"><b>FLAT</b>cost under a swarm</div>
+      <div class="metric"><b>1–5%</b>cloud share of TCO</div>
+      <div class="metric"><b>$2.5B→$30.3B</b>market by 2035</div>
+    </div>
+    <div class="cue"><b>[~20s · part of the 8:50–9:40 criterion-5 window, after the roadmap]</b> One line: "The expensive part — the LLM — is off the hot path and throttled, so cost is flat under a swarm; at fleet scale our software is a few percent of TCO, on a market headed to $30 B." Full detail in COST-ANALYSIS.md.</div>
+  </section>
+
+  <!-- 6c · COLLABORATION -->
+  <section class="slide">
+    <div class="kicker">Collaboration · team C2 console</div>
+    <h2>One system, two views.</h2>
+    <div class="grid2">
+      <div class="card"><h3>My 3D tactical sim</h3><p>The air picture and the engagement — detect → classify → human-gated defeat, cooperative Link-16 fusion, DDIL resilience.</p></div>
+      <div class="card"><h3>Berg's 2D operator console</h3><p>The command-and-control layer — weapons-control posture (HOLD/TIGHT/FREE/AUTO), saturation → pre-authorized auto-defense, and the hash-chained audit ledger.</p></div>
+    </div>
+    <div style="margin-top:24px;">
+      <a href="https://peripheral-six-cornwall-basename.trycloudflare.com/" style="display:inline-flex;align-items:center;gap:10px;text-decoration:none;font-weight:700;font-size:17px;padding:14px 24px;border-radius:11px;background:linear-gradient(180deg,#ffbf6b,#ef9f38);color:#231402;box-shadow:0 6px 22px rgba(255,180,84,.25);">▶ Launch Berg's C-UAS operator console</a>
+    </div>
+    <div class="thesis" style="margin-top:22px;font-size:20px;">Same governed spine — the deterministic gate + hash-chained ledger — seen from the tactical edge and the operator's C2.</div>
+    <div class="sub" style="margin-top:14px;font-size:14px;">Team <b>Wolfberg Per Aspera</b> · 2D console by Berg. Also federates with a partner multi-domain C2 (JADC2) — see the repo.</div>
+    <div class="cue"><b>[at the end]</b> Open Berg's console link and run it live: "Same governed spine, two vantages — my 3D tactical sim and Berg's operator C2. Weapons-control posture, saturation → auto-defense, the hash-chained ledger." Credit Berg.</div>
+  </section>
+
+  <!-- 7 · CLOSE -->
+  <section class="slide">
+    <div class="kicker">Close</div>
+    <div class="big-close">Machine speed. Human authority. The LLM off the trigger — and it keeps fighting when the comms are gone.</div>
+    <div class="metrics">
+      <div class="metric"><b>&lt;1 ms</b>deterministic gate</div>
+      <div class="metric"><b>&lt;0.1%</b>FP vs friendly</div>
+      <div class="metric"><b>45/45</b>tests</div>
+      <div class="metric"><b>DDIL</b>edge&#8209;autonomous</div>
+    </div>
+    <div class="lede">Repo: <a>github.com/wasihussain914/Aegis-Edge</a> &nbsp;·&nbsp; Live demo running now.</div>
+    <div class="lede" style="font-size:16px;margin-top:14px;color:var(--faint);">Syed “Wasi” Hussain · Team Wolfberg Per Aspera · Thank you.</div>
+    <div class="cue"><b>[9:40–10:00]</b> Restate the one&#8209;liner, name the ask (pilot partner / next step), thank them. Leave the sim on screen.</div>
+  </section>
+
+</div>
+
+<div class="foot"><span id="pos">1 / 7</span><span>← → or Space to navigate · F fullscreen</span></div>
+
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const bar = document.getElementById('bar'), pos = document.getElementById('pos');
+  let i = 0;
+  function show(n) {
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, k) => s.classList.toggle('on', k === i));
+    bar.style.width = ((i + 1) / slides.length * 100) + '%';
+    pos.textContent = (i + 1) + ' / ' + slides.length;
+  }
+  addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); show(i + 1); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); show(i - 1); }
+    else if (e.key === 'Home') show(0);
+    else if (e.key === 'End') show(slides.length - 1);
+    else if (e.key.toLowerCase() === 'f') { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); }
+  });
+  addEventListener('click', (e) => { if (e.clientX < innerWidth * 0.25) show(i - 1); else show(i + 1); });
+  show(0);
+</script>
+</body>
+</html>

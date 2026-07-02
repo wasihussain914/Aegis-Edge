@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Aegis-Edge · AWS Architecture</title>
+<style>
+  :root{
+    --ink:#16191f; --sub:#5f6b7a; --faint:#8d99a8; --line:#d5dbdb; --bg:#f7f8fa; --panel:#fff;
+    --orange:#ED7100;   /* Compute        */ --green:#7AA116;  /* Storage / IoT   */
+    --purple:#8C4FFF;   /* Analytics/Net  */ --red:#DD3444;    /* Security        */
+    --teal:#01A88D;     /* Machine Learning*/ --pink:#E7157B;  /* Mgmt & Gov      */
+    --awsnavy:#232F3E;  --awsorange:#FF9900;
+    --sans:"Amazon Ember",ui-sans-serif,system-ui,"Segoe UI",Roboto,sans-serif;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);padding:24px 28px 40px;-webkit-font-smoothing:antialiased}
+  .head{display:flex;justify-content:space-between;align-items:flex-end;gap:18px;flex-wrap:wrap;margin-bottom:16px}
+  .title{font-size:22px;font-weight:800;letter-spacing:-.2px}
+  .title b{color:var(--orange)}
+  .sub{font-size:12.5px;color:var(--sub);margin-top:3px}
+  .sub code{font-family:var(--mono);font-size:11.5px;color:var(--awsnavy);background:#eef1f4;padding:1px 5px;border-radius:4px}
+  .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--sub)}
+  .legend .k{display:inline-flex;align-items:center;gap:5px}
+  .sw{width:11px;height:11px;border-radius:3px;display:inline-block}
+
+  /* AWS Cloud outer container */
+  .cloud{border:2px solid var(--awsnavy);border-radius:10px;padding:34px 18px 18px;position:relative;background:linear-gradient(180deg,#fff,#fcfdfe)}
+  .cloud>.tab{position:absolute;top:-1px;left:-1px;background:var(--awsnavy);color:#fff;font-size:12px;font-weight:700;
+    padding:6px 12px 6px 10px;border-radius:9px 0 10px 0;display:flex;align-items:center;gap:7px}
+  .tab .logo{width:22px;height:16px;background:var(--awsorange);border-radius:3px;display:inline-block;position:relative}
+  .tab .logo::after{content:"aws";position:absolute;inset:0;color:#232F3E;font:800 8px/16px var(--sans);text-align:center;letter-spacing:.5px}
+
+  .cols{display:grid;grid-template-columns:1.15fr 0.85fr;gap:26px;align-items:start}
+
+  /* group box (Region / VPC / Edge) */
+  .grp{border:1.6px dashed var(--line);border-radius:9px;padding:30px 15px 15px;position:relative;background:var(--panel)}
+  .grp.edge{border-color:var(--orange)} .grp.gov{border-color:var(--red)}
+  .grp>.gtab{position:absolute;top:9px;left:12px;display:flex;align-items:center;gap:7px;font-size:12px;font-weight:700;color:var(--ink)}
+  .gtab .gi{width:18px;height:18px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:800}
+  .grp .note{position:absolute;top:11px;right:12px;font-size:10.5px;color:var(--faint);font-family:var(--mono)}
+
+  .row{display:flex;gap:12px;flex-wrap:wrap;margin-top:6px}
+  .row+.row{margin-top:14px;position:relative}
+
+  /* service tile — AWS-style: category-colored rounded square + name */
+  .svc{display:flex;flex-direction:column;align-items:center;text-align:center;width:112px;gap:6px}
+  .svc .ico{width:46px;height:46px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:#fff;
+    font-size:22px;box-shadow:0 1px 2px rgba(0,0,0,.14)}
+  .svc .nm{font-size:11.5px;font-weight:700;line-height:1.2}
+  .svc .ro{font-size:10px;color:var(--sub);line-height:1.25}
+  .hero{width:100%}
+  .hero .box{border:1.6px solid var(--orange);border-radius:9px;background:#fff7ef;padding:12px 14px;display:flex;gap:12px;align-items:center;width:100%}
+  .hero .box .ico{width:44px;height:44px;flex:0 0 44px}
+  .hero .box .txt .nm{font-size:13px;font-weight:800}
+  .hero .box .txt .ro{font-size:11px;color:var(--sub);margin-top:2px}
+
+  .co-orange{background:var(--orange)} .co-green{background:var(--green)} .co-purple{background:var(--purple)}
+  .co-red{background:var(--red)} .co-teal{background:var(--teal)} .co-pink{background:var(--pink)} .co-navy{background:var(--awsnavy)}
+
+  .conn{display:flex;align-items:center;justify-content:center;color:var(--faint);font-size:18px;margin:2px 0}
+  .between{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:0 4px}
+  .between .lbl{font-size:10px;color:var(--faint);font-family:var(--mono);writing-mode:vertical-rl;text-orientation:mixed}
+
+  .step{width:19px;height:19px;border-radius:50%;background:var(--awsorange);color:#232F3E;font:800 11px/19px var(--sans);
+    text-align:center;display:inline-block;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+
+  .flow{margin-top:20px;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:14px 18px}
+  .flow h3{font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--awsnavy);margin-bottom:10px}
+  .flow ol{list-style:none;display:grid;grid-template-columns:1fr 1fr;gap:7px 26px}
+  .flow li{font-size:12.5px;color:var(--ink);display:flex;gap:9px;align-items:flex-start;line-height:1.35}
+  .flow li b{color:var(--awsnavy)}
+  .foot{margin-top:12px;font-size:11.5px;color:var(--sub);line-height:1.5}
+  .foot b{color:var(--ink)}
+</style>
+</head>
+<body>
+  <div class="head">
+    <div>
+      <div class="title">AEGIS&#8209;EDGE — <b>AWS Reference Architecture</b></div>
+      <div class="sub">Governable cooperative counter&#8209;UAS · deterministic gate at the edge · human authorizes every kill · LLM off the kill chain · resilient under DDIL &nbsp;·&nbsp; <code>GovCloud IL5 · us-east-1 · acct 521034048482</code></div>
+    </div>
+    <div class="legend">
+      <span class="k"><span class="sw co-orange"></span>Compute</span>
+      <span class="k"><span class="sw co-purple"></span>Analytics</span>
+      <span class="k"><span class="sw co-green"></span>Storage / IoT</span>
+      <span class="k"><span class="sw co-teal"></span>Machine Learning</span>
+      <span class="k"><span class="sw co-red"></span>Security &amp; Identity</span>
+      <span class="k"><span class="sw co-pink"></span>Mgmt &amp; Gov</span>
+    </div>
+  </div>
+
+  <div class="cloud">
+    <div class="tab"><span class="logo"></span> AWS Cloud</div>
+    <div class="cols">
+
+      <!-- EDGE -->
+      <div class="grp edge">
+        <div class="gtab"><span class="gi co-orange">◉</span> Tactical Edge — AWS Snowball Edge / AWS IoT Greengrass</div>
+        <div class="note">runs OFFLINE in DDIL</div>
+
+        <div class="row" style="justify-content:space-around">
+          <div class="svc"><div class="ico co-navy">◎</div><div class="nm">Radar</div><div class="ro">kinematics</div></div>
+          <div class="svc"><div class="ico co-navy">≈</div><div class="nm">RF / SIGINT</div><div class="ro">emitter DF</div></div>
+          <div class="svc"><div class="ico co-navy">▣</div><div class="nm">EO / IR</div><div class="ro">thermal / visual</div></div>
+          <div class="svc"><div class="ico co-navy">⌁</div><div class="nm">Effector</div><div class="ro">SAPIENT / BSI 335</div></div>
+        </div>
+
+        <div class="conn"><span class="step">1</span>&nbsp;↓ sensors → tracks &nbsp;<span class="step">2</span></div>
+
+        <div class="row" style="justify-content:center">
+          <div class="svc"><div class="ico co-purple">≋</div><div class="nm">Amazon Kinesis</div><div class="ro">Data Streams<br>cuas-demo-tracks</div></div>
+        </div>
+
+        <div class="conn"><span class="step">3</span>&nbsp;↓ ingest</div>
+
+        <div class="row hero">
+          <div class="box">
+            <div class="ico co-green" style="border-radius:9px;font-size:22px">◉</div>
+            <div class="txt">
+              <div class="nm">AWS IoT Greengrass v2 core — <span style="color:var(--orange)">cuas-core</span> · EC2 t3.small</div>
+              <div class="ro"><b>IMM tracker</b> → <b>deterministic ROE gate</b> (~0.58 µs) → <b>hash-chained ledger</b>. Human gate + two-person auth. Decides locally with no cloud.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="conn"><span class="step">4</span>&nbsp;↓ engage (human-approved) → effector &nbsp;·&nbsp; <span class="step">7</span> operator C2</div>
+        <div class="row" style="justify-content:center">
+          <div class="svc"><div class="ico co-navy">◧</div><div class="nm">Operator C2</div><div class="ro">3D sim / 2D console<br>approves every kill</div></div>
+        </div>
+      </div>
+
+      <!-- CLOUD -->
+      <div class="grp gov">
+        <div class="gtab"><span class="gi co-red">▤</span> AWS GovCloud (US) · VPC — IL5 boundary</div>
+        <div class="note">explain · store · govern</div>
+
+        <div class="row" style="justify-content:center;margin-top:4px">
+          <div class="svc"><div class="ico co-teal">✦</div><div class="nm">Amazon Bedrock</div><div class="ro">Claude / Nova assessment<br><b>off the kill chain</b></div></div>
+        </div>
+        <div class="conn"><span class="step">6</span>&nbsp;async · throttled (narrates a sample)</div>
+
+        <div class="row" style="justify-content:space-around">
+          <div class="svc"><div class="ico co-green">⛁</div><div class="nm">Amazon S3</div><div class="ro">Object Lock (WORM)<br>signed ledger</div></div>
+          <div class="svc"><div class="ico co-red">⚿</div><div class="nm">AWS KMS</div><div class="ro">encryption keys</div></div>
+        </div>
+        <div class="conn"><span class="step">5</span>&nbsp;signed audit → immutable store</div>
+
+        <div class="row" style="justify-content:space-around">
+          <div class="svc"><div class="ico co-red">⚇</div><div class="nm">AWS IAM + IoT TES</div><div class="ro">least-privilege<br>no keys on device</div></div>
+          <div class="svc"><div class="ico co-pink">◔</div><div class="nm">Amazon CloudWatch</div><div class="ro">telemetry / SLO</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="flow">
+    <h3>Data flow — one governed decision</h3>
+    <ol>
+      <li><span class="step">1</span><span>Radar / RF / EO-IR <b>sensors</b> produce real drone tracks (fused, IMM).</span></li>
+      <li><span class="step">2</span><span>Tracks stream to <b>Amazon Kinesis Data Streams</b> (<code>cuas-demo-tracks</code>).</span></li>
+      <li><span class="step">3</span><span><b>Greengrass core</b> ingests: IMM predictor → deterministic ROE gate (~0.58 µs).</span></li>
+      <li><span class="step">4</span><span>Gate recommends → <b>human two-person gate</b> approves → <b>effector</b> (SAPIENT).</span></li>
+      <li><span class="step">5</span><span>Every action → hash-chained ledger → <b>Amazon S3 Object Lock</b> (WORM), <b>KMS</b>-encrypted.</span></li>
+      <li><span class="step">6</span><span>On escalation only → <b>Amazon Bedrock</b> explains (async, off the kill chain).</span></li>
+      <li><span class="step">7</span><span><b>IAM + IoT Token Exchange</b> issue scoped, keyless creds; <b>CloudWatch</b> observes.</span></li>
+      <li><span class="step">✓</span><span>Link and cloud denied (DDIL)? Steps 1–5 keep running on the <b>edge</b> — only step 6 defers.</span></li>
+    </ol>
+    <div class="foot">
+      <b>Edge decides; cloud explains &amp; remembers.</b> The kill chain is deterministic and offline-capable —
+      when comms are jammed the Greengrass gate keeps governing locally; the LLM only narrates and never
+      authorizes a shot. Verified runtime: Kinesis → Greengrass v2 (EC2 t3.small) → Bedrock, Token
+      Exchange Service roles (no keys on device), least-privilege (Kinesis-read + Bedrock + S3).
+    </div>
+  </div>
+</body>
+</html>
